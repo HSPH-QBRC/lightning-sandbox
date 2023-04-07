@@ -1,0 +1,4 @@
+job:
+  chdir: true
+run:
+  dir: ./outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
