@@ -3,3 +3,4 @@ defaults:
   - hydra: default
   
 mode: train
+strict_git_clean: true
