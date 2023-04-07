@@ -10,7 +10,8 @@
 	"remoteUser": "root",
 	"extensions": [
 		"ms-python.vscode-pylance",
-		"ms-python.python"
+		"ms-python.python",
+		"shd101wyy.markdown-preview-enhanced"
 	]
 }
 
