@@ -1,0 +1,5 @@
+model_name: basic_ann
+params:
+  img_height: 28
+  img_width: 28
+  num_classes: 10

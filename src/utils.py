@@ -1,8 +1,12 @@
+import logging
 from pathlib import Path
 import shlex
 import subprocess as sp
+import sys
 
 from hydra.core.hydra_config import HydraConfig
+
+logger = logging.getLogger(__name__)
 
 
 def run_shell_cmd(cmd):
@@ -49,3 +53,20 @@ def write_git_commit(strict=True, name='git_commit.txt'):
     output_path = Path.cwd()/Path(HydraConfig.get().output_subdir)/Path(name)
     with output_path.open('w') as fout:
         fout.write(commit_hash)
+
+
+def perform_startup_checks(cfg):
+    '''
+    This function is used to check that execution can proceed. Add
+    pre-check logic here.
+    '''
+    # Before anything else, check that we are permitting execution to proceed
+    # if there are uncommited changes.
+    try:
+        if not cfg.strict_git_clean:
+            logger.warning('Running in non-strict mode. This permits'
+                           ' executions with a dirty git working tree')
+        write_git_commit(strict=cfg.strict_git_clean)
+    except Exception as ex:
+        sys.stderr.write(f'{ex}\n')
+        sys.exit(1)
