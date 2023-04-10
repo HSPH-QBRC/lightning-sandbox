@@ -13,7 +13,7 @@ def main(cfg):
     selected_model = load_model(cfg.model)
     pl_module = load_pl_module(cfg.pl_module, selected_model)
     datamodule = load_dataset(cfg.dataset)
-    trainer = Trainer(max_epochs=5)
+    trainer = Trainer(max_epochs=cfg.trainer.max_epochs)
     trainer.fit(model=pl_module, datamodule=datamodule)
 
 

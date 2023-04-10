@@ -3,6 +3,18 @@ defaults:
   - hydra: default
   
 mode: train
+
+# Dictates whether we allow executions from a 
+# dirty git working tree. If strict, then any
+# uncommitted changes will prevent execution.
 strict_git_clean: false
+
 dataset:
+  # This is where datasets will be located or downloaded under.
+  # Relative to the current working directory (before any Hydra
+  # chdir changes).
   base_dir: datasets
+  num_workers: 4
+
+trainer:
+  max_epochs: 10

@@ -22,7 +22,7 @@ class MNISTDataModule(LightningDataModule):
         self.data_dir = Path(get_original_cwd()) / \
             Path(dataset_cfg.base_dir) / Path(MNISTDataModule.NAME)
         self.batch_size = dataset_cfg.batch_size
-        self.num_workers = 4
+        self.num_workers = dataset_cfg.num_workers
         self.transformations = transforms.Compose([
             transforms.ToTensor()
         ])
