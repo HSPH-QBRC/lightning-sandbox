@@ -4,10 +4,15 @@ defaults:
   
 mode: train
 
-# Dictates whether we allow executions from a 
-# dirty git working tree. If strict, then any
-# uncommitted changes will prevent execution.
-strict_git_clean: false
+general:
+
+  # Dictates whether we allow executions from a 
+  # dirty git working tree. If strict, then any
+  # uncommitted changes will prevent execution.
+  strict_git_clean: false
+
+  # used for lightning's seed_everything function
+  global_seed: 10
 
 dataset:
   # This is where datasets will be located or downloaded under.

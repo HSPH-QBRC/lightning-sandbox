@@ -5,6 +5,7 @@ import subprocess as sp
 import sys
 
 from hydra.core.hydra_config import HydraConfig
+from pytorch_lightning import seed_everything
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +64,12 @@ def perform_startup_checks(cfg):
     # Before anything else, check that we are permitting execution to proceed
     # if there are uncommited changes.
     try:
-        if not cfg.strict_git_clean:
+        if not cfg.general.strict_git_clean:
             logger.warning('Running in non-strict mode. This permits'
                            ' executions with a dirty git working tree')
-        write_git_commit(strict=cfg.strict_git_clean)
+        write_git_commit(strict=cfg.general.strict_git_clean)
     except Exception as ex:
         sys.stderr.write(f'{ex}\n')
         sys.exit(1)
+
+    seed_everything(cfg.general.global_seed)
