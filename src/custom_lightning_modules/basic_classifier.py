@@ -37,9 +37,6 @@ class BasicClassifierModule(LightningModule):
         `y` is a vector of targets/outputs (e.g. the class we are
             trying to predict)
         '''
-        # the model expects each input to be flattened. This reshapes
-        # the input tensor from (B,H,W) to (B,H*W)
-        x = x.view(x.size(0), -1)
         logits = self.model(x)
         return logits, self.loss_fn(logits, y)
 

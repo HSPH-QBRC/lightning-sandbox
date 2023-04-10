@@ -43,8 +43,13 @@ class BasicAnnModel(nn.Module):
         '''
         The forward pass through the network.
 
-        `x` is a batch of images, already flattened,
-        e.g. x.shape = [batch_size, H*W] where H,W are
+        `x` is a batch of images,
+        e.g. x.shape = [batch_size, H, W] where H,W are
         image height and width.
+
+        The net expects the images to be flattened, so we
+        apply that below
         '''
+        # flatten the input tensor from (B,H,W) to (B,H*W)
+        x = x.view(x.size(0), -1)
         return self.net(x)
