@@ -4,3 +4,5 @@ defaults:
   
 mode: train
 strict_git_clean: false
+dataset:
+  base_dir: datasets

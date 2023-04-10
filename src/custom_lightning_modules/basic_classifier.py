@@ -3,6 +3,8 @@ from torch import nn
 from torch.optim import Adam
 from torchmetrics import Accuracy
 
+from checkpoints.basic_classifier import BasicClassifierCheckpoint
+
 
 class BasicClassifierModule(LightningModule):
     '''
@@ -118,3 +120,19 @@ class BasicClassifierModule(LightningModule):
         logits, _ = self._batchstep(x, y, batch_idx)
         predictions = self._get_predictions(logits)
         return predictions, x, y
+
+    def configure_callbacks(self):
+        '''
+        Since model-specific callbacks are somewhat tied to
+        the model (e.g. monitoring 'val_acc'), define the
+        checkpoint(s) here.
+
+        Callbacks defined here will be merged with those passed to
+        the Trainer
+        See https://lightning.ai/docs/pytorch/stable/\
+            common/lightning_module.html#configure-callbacks
+        '''
+        cb_list = super().configure_callbacks()
+        chkpt = BasicClassifierCheckpoint()
+        cb_list.append(chkpt)
+        return cb_list
