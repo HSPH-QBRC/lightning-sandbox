@@ -1,9 +1,11 @@
 import sys
 
 from .mnist import MNISTDataModule
+from .cifar10 import CIFAR10DataModule
 
 DATASET_LIST = [
-    MNISTDataModule
+    MNISTDataModule,
+    CIFAR10DataModule
 ]
 
 AVAILABLE_DATASETS = {x.NAME: x for x in DATASET_LIST}

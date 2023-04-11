@@ -22,6 +22,7 @@ class BasicAnnModel(nn.Module):
                  *args,
                  **kwargs):
         '''
+        Required params:
         `img_height`: The image height in pixels
         `img_width`: The image width in pixels
         `num_classes`: The number of classes to map to for this classifier

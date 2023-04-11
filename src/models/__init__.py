@@ -1,9 +1,11 @@
 import sys
 
 from .basic_ann import BasicAnnModel
+from .resnet import ResnetModel
 
 MODEL_LIST = [
-    BasicAnnModel
+    BasicAnnModel,
+    ResnetModel
 ]
 
 AVAILABLE_MODELS = {x.NAME: x for x in MODEL_LIST}
