@@ -1,5 +1,6 @@
 import hydra
 from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import LearningRateMonitor
 
 from utils import perform_startup_checks
 from models import load_model
@@ -13,7 +14,7 @@ def main(cfg):
     selected_model = load_model(cfg.model)
     pl_module = load_pl_module(cfg.pl_module, selected_model)
     datamodule = load_dataset(cfg.dataset)
-    trainer = Trainer(max_epochs=cfg.trainer.max_epochs)
+    trainer = Trainer(accelerator='auto', devices='auto', max_epochs=cfg.trainer.max_epochs, callbacks=[LearningRateMonitor(logging_interval="step")])
     trainer.fit(model=pl_module, datamodule=datamodule)
 
 

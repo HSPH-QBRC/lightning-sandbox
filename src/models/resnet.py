@@ -33,6 +33,7 @@ class ResnetModel(nn.Module):
                                    stride=(1, 1),
                                    padding=(1, 1),
                                    bias=False)
+        self.net.maxpool = nn.Identity()
 
     def forward(self, x):
         '''

@@ -1,7 +1,9 @@
 from pytorch_lightning import LightningModule
 from torch import nn
 from torch.optim import Adam
+import torch.optim
 from torchmetrics import Accuracy
+from torch.optim.lr_scheduler import OneCycleLR
 
 from checkpoints.basic_classifier import BasicClassifierCheckpoint
 
@@ -16,6 +18,7 @@ class BasicClassifierModule(LightningModule):
 
     def __init__(self, model, module_cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.save_hyperparameters(ignore=['model'])
         self.model = model
         self.loss_fn = nn.CrossEntropyLoss()
         self.train_acc = Accuracy(task="multiclass",
@@ -24,8 +27,24 @@ class BasicClassifierModule(LightningModule):
                                   num_classes=self.model.num_classes)
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=1e-3)
-        return optimizer
+        optimizer = torch.optim.SGD(
+            self.parameters(),
+            lr=0.05,
+            momentum=0.9,
+            weight_decay=5e-4,
+        )
+        # given the 80/20 split of the data, train/val set is 40k/10k
+        steps_per_epoch = 40000 // 64
+        scheduler_dict = {
+            "scheduler": OneCycleLR(
+                optimizer,
+                0.1,
+                epochs=80,
+                steps_per_epoch=steps_per_epoch,
+            ),
+            "interval": "step",
+        }
+        return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}
 
     def _batchstep(self, x, y, batch_idx):
         '''
