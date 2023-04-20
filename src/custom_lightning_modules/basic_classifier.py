@@ -1,11 +1,9 @@
 from pytorch_lightning import LightningModule
 from torch import nn
-from torch.optim import Adam
-import torch.optim
 from torchmetrics import Accuracy
-from torch.optim.lr_scheduler import OneCycleLR
 
 from checkpoints.basic_classifier import BasicClassifierCheckpoint
+from optimizers import load_optimizer_and_lr_scheduler
 
 
 class BasicClassifierModule(LightningModule):
@@ -16,8 +14,9 @@ class BasicClassifierModule(LightningModule):
 
     NAME = 'basic_classifier'
 
-    def __init__(self, model, module_cfg, *args, **kwargs):
+    def __init__(self, model, cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.config = cfg
         self.save_hyperparameters(ignore=['model'])
         self.model = model
         self.loss_fn = nn.CrossEntropyLoss()
@@ -27,24 +26,19 @@ class BasicClassifierModule(LightningModule):
                                   num_classes=self.model.num_classes)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(
-            self.parameters(),
-            lr=0.05,
-            momentum=0.9,
-            weight_decay=5e-4,
-        )
-        # given the 80/20 split of the data, train/val set is 40k/10k
-        steps_per_epoch = 40000 // 64
-        scheduler_dict = {
-            "scheduler": OneCycleLR(
-                optimizer,
-                0.1,
-                epochs=80,
-                steps_per_epoch=steps_per_epoch,
-            ),
-            "interval": "step",
-        }
-        return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}
+        optimizer, lr_scheduler = load_optimizer_and_lr_scheduler(
+            self.parameters(), self.config, self.trainer)
+
+        if lr_scheduler is not None:
+            additional_params = {}
+            if 'scheduler_config' in self.config.lr_scheduler:
+                additional_params = self.config.lr_scheduler.scheduler_config
+            scheduler_dict = {
+                "scheduler": lr_scheduler,
+                **additional_params
+            }
+            return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}
+        return optimizer
 
     def _batchstep(self, x, y, batch_idx):
         '''

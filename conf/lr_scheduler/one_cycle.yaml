@@ -1,0 +1,6 @@
+name: onecycle
+scheduler_config:
+  interval: step
+params:
+  max_lr: 0.1 
+    

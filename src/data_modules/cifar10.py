@@ -25,6 +25,8 @@ class CIFAR10DataModule(LightningDataModule):
         self.batch_size = dataset_cfg.batch_size
         self.num_workers = dataset_cfg.num_workers
         self.seed = dataset_cfg.seed
+        self.train_fraction = dataset_cfg.train_fraction
+        self.validation_fraction = 1 - self.train_fraction
         self._set_transforms()
 
     def _set_transforms(self):
@@ -55,7 +57,7 @@ class CIFAR10DataModule(LightningDataModule):
             normalize
         ])
 
-    def prepare_data(self) -> None:
+    def prepare_data(self):
         '''
         This method is used to download data and should NOT assign
         instance state per the docs. In the case of single-node training, etc.
@@ -65,7 +67,7 @@ class CIFAR10DataModule(LightningDataModule):
         CIFAR10(self.data_dir, download=True, train=True)
         CIFAR10(self.data_dir, download=True, train=False)
 
-    def setup(self, stage: str) -> None:
+    def setup(self, stage: str):
         if stage == 'fit' or stage is None:
             # we first get the same datasets for train and validation, with
             # the only difference being the applied transforms.
@@ -78,11 +80,12 @@ class CIFAR10DataModule(LightningDataModule):
             # and validation sets. Note that we use the same generator for
             # both so that we are not leaking training data into the
             # validation set
+            split_fractions = [self.train_fraction, self.validation_fraction]
             self.train_dataset, _ = random_split(
-                full_train_dataset, [0.8, 0.2],
+                full_train_dataset, split_fractions,
                 generator=Generator().manual_seed(self.seed))
             _, self.val_dataset = random_split(
-                full_validation_dataset, [0.8, 0.2],
+                full_validation_dataset, split_fractions,
                 generator=Generator().manual_seed(self.seed))
 
         if stage == 'test':
