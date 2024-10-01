@@ -1,0 +1,4 @@
+name: Adam
+params: 
+  lr: 0.00003
+  amsgrad: False

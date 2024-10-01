@@ -1,9 +1,11 @@
 import sys
 
+from lr_schedulers.cosine_annealing import CosineAnnealing
 from lr_schedulers.onecycle import OneCycle
 
 AVAILABLE_SCHEDULERS = {
-    'onecycle': OneCycle
+    'onecycle': OneCycle,
+    'cosine_annealing': CosineAnnealing
 }
 
 

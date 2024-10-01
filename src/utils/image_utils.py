@@ -62,7 +62,8 @@ def extract_tiles(img_path, num_tiles=64, tile_size=192, mode=0):
 
     # based on the sum of the pixels in each tile, we sort and take the
     # top num_tiles. Recall that np.argsort gives ascending order. We
-    # want this since more 'informative' images will have more colored pixels.
+    # want this since more 'informative' images will have more colored pixels
+    # which are lower pixel values.
     # Majority white tiles will have very large sums and are likely not
     # very informative.
     idxs = np.argsort(img.reshape(img.shape[0],-1).sum(-1))[:num_tiles]

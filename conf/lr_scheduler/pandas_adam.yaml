@@ -1,0 +1,4 @@
+name: cosine_annealing
+params:
+  T_max: ${trainer.max_epochs}
+  last_epoch: -1

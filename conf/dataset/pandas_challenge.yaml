@@ -2,6 +2,7 @@ dataset_name: pandas_challenge
 base_dir: pandas_challenge_data
 batch_size: 32
 seed: 42
+num_grades: 5
 train_fraction: 0.8
 fit_augmentations:
   - name: Transpose

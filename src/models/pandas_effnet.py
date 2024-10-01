@@ -39,6 +39,7 @@ class SEBlock(nn.Module):
         x = input_x * x
         return x
 
+
 class EfficientNetModel(nn.Module):
 
     NAME = 'efficientnet_b1'
