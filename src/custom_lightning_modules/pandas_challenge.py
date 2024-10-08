@@ -1,4 +1,3 @@
-import enum
 import numpy as np
 
 from pytorch_lightning import LightningModule
@@ -6,6 +5,7 @@ from torch import nn
 from torchmetrics import Accuracy
 
 from optimizers import load_optimizer_and_lr_scheduler
+from checkpoints.pandas_challenge import PandasChallengeCheckpoint
 
 
 class PandasModule(LightningModule):
@@ -202,3 +202,19 @@ class PandasModule(LightningModule):
         predictions = self._make_prediction(logits)
         metric(predictions, isup_grades)
         self.log(metric_key, metric)
+
+    def configure_callbacks(self):
+        '''
+        Since model-specific callbacks are somewhat tied to
+        the model (e.g. monitoring 'val_acc'), define the
+        checkpoint(s) here.
+
+        Callbacks defined here will be merged with those passed to
+        the Trainer
+        See https://lightning.ai/docs/pytorch/stable/\
+            common/lightning_module.html#configure-callbacks
+        '''
+        cb_list = super().configure_callbacks()
+        chkpt = PandasChallengeCheckpoint()
+        cb_list.append(chkpt)
+        return cb_list
