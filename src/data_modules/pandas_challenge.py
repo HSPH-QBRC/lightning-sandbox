@@ -5,7 +5,6 @@ import pandas as pd
 
 import cv2
 
-import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, random_split
 from torch import Generator
@@ -98,7 +97,6 @@ class PandasDataset(Dataset):
         img = img.astype(np.float32)
         img = 255 - img
         img /= 255 
-        img = cv2.resize(img, (self.img_size, self.img_size))
         return img
 
     def _concat_tiles(self, tiles):
