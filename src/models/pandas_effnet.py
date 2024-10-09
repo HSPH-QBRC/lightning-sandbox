@@ -40,9 +40,13 @@ class SEBlock(nn.Module):
         return x
 
 
-class EfficientNetModel(nn.Module):
+class EfficientNetB1Model(nn.Module):
+    '''
+    This model class extends the base EfficientNet-B1 model
+    and replaces various components (e.g. avg pool - GeM)
+    '''
 
-    NAME = 'efficientnet_b1'
+    NAME = 'pandas_efficientnet_b1'
 
     def __init__(self,
                  model_cfg,
