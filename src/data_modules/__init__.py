@@ -2,10 +2,12 @@ import sys
 
 from .mnist import MNISTDataModule
 from .cifar10 import CIFAR10DataModule
+from .pandas_challenge import PandasDataModule
 
 DATASET_LIST = [
     MNISTDataModule,
-    CIFAR10DataModule
+    CIFAR10DataModule,
+    PandasDataModule
 ]
 
 AVAILABLE_DATASETS = {x.NAME: x for x in DATASET_LIST}

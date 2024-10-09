@@ -1,5 +1,6 @@
 dataset_name: pandas_challenge
-base_dir: pandas_challenge_data
+base_dir: 
+image_meta_path:
 batch_size: 32
 seed: 42
 kfold:

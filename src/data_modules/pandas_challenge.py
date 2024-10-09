@@ -6,8 +6,7 @@ import pandas as pd
 import cv2
 
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader, random_split
-from torch import Generator
+from torch.utils.data import DataLoader
 import albumentations as alb
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset
@@ -38,6 +37,10 @@ class PandasDataset(Dataset):
         # CSV-format file giving the image ID, source, Gleason scores, etc.
         self.image_meta_path = dataset_cfg.image_meta_path
         self.image_meta_df = pd.read_csv(self.image_meta_path)
+
+        # this method permits us to modify `self.image_meta_df` to
+        # change the 'pool' of potential source images for the 
+        # particular dataset. See the method for details.
         self._process_image_meta()
 
         self.randomize_tiles = dataset_cfg.randomize_tiles
@@ -52,9 +55,12 @@ class PandasDataset(Dataset):
 
         # we have two directories where we have extracted tiles. They differ
         # based on the initial tile positioning. This is the "offset mode"
+        # Within those directories are subdirectories (which keeps the number
+        # of files per directory manageable). These paths, do NOT have those-
+        # they are just the 'root'
+        self.base_input_tile_dir = dataset_cfg.base_dir
         self.train_input_tile_dirs = [
-            # TODO change
-            f'../input/numtile-{self.num_tiles}-tilesize-{self.tile_size}-res-1-offset-mode-{m}'
+            f'{self.base_input_tile_dir}/numtile-{self.num_tiles}-tilesize-{self.tile_size}-res-0-mode-{m}'
             for m in [0, 2]
         ]
 
@@ -186,28 +192,36 @@ class PandasDataset(Dataset):
             cv2.cvtColor(cv2.imread(p), cv2.COLOR_BGR2RGB) for p in paths])
         return tiles
 
-    def _get_input_tile_dir(self):
+    def _get_input_tile_dir(self, image_id):
         '''
         There are multiple folders which can contain different versions
         of the tiles extracted from the original images. This method
         contains the logic for that.
         '''
+        # to avoid issues with filesystems and excessive numbers of files
+        # we locate the previously prepared tile images inside of
+        # subdirectories. By using the image ID, we can determine
+        # which subdirectory we need
+        row = self.image_meta_df.loc[
+            self.image_meta_df['image_id'] == image_id].iloc[0]
+        subdir = row.image_subdir
         if self.phase == 'fit':
             if np.random.rand() < 0.5:
-                return self.train_input_tile_dirs[0]
+                root_dir = self.train_input_tile_dirs[0]
             else:
-                return self.train_input_tile_dirs[1]
+                root_dir = self.train_input_tile_dirs[1]
+            return f'{root_dir}/{subdir}'
         elif self.phase == 'validate':
-            return self.train_input_tile_dirs[0]
+            return f'{self.train_input_tile_dirs[0]}/{subdir}'
         else: # test/predict case
-            return self.test_image_dirs
+            raise NotImplementedError('!!!')
 
     def _get_tiles(self, image_id):
         '''
         Handles retrieving an array of tiles which were
         previously extracted from the original image.
         '''
-        img_dir = self._get_input_tile_dir()
+        img_dir = self._get_input_tile_dir(image_id)
         if self.phase in ['fit', 'validate']:
             paths = [
                 Path(f'{img_dir}/{image_id}_{i}.png')
@@ -224,7 +238,7 @@ class PandasDataset(Dataset):
 
 class PandasDataModule(LightningDataModule):
 
-    NAME = 'pandas'
+    NAME = 'pandas_challenge'
 
     def __init__(self, dataset_cfg):
         super().__init__()
