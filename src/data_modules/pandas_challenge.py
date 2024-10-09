@@ -43,9 +43,14 @@ class PandasDataset(Dataset):
         # particular dataset. See the method for details.
         self._process_image_meta()
 
-        self.randomize_tiles = dataset_cfg.randomize_tiles
-        self.random_rotate_tile = dataset_cfg.random_rotate_tile
-        self.random_tile_white = dataset_cfg.random_tile_white
+        if self.phase == 'fit':
+            self.randomize_tiles = dataset_cfg.randomize_tiles
+            self.random_rotate_tile = dataset_cfg.random_rotate_tile
+            self.random_tile_white = dataset_cfg.random_tile_white
+        else:
+            self.randomize_tiles = False
+            self.random_rotate_tile = False
+            self.random_tile_white = False
 
         # assert that the number of tiles, tile size, and image size are compatible
         assert(np.allclose(
