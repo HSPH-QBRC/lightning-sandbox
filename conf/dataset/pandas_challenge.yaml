@@ -5,6 +5,9 @@ batch_size: 6
 seed: 42
 kfold:
 num_grades: 5
+randomize_tiles: True
+random_rotate_tile: False
+random_tile_white: False
 fit_augmentations:
   - name: Transpose
     params:
