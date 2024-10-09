@@ -10,10 +10,9 @@ from torch.utils.data import DataLoader, random_split
 from torch import Generator
 import albumentations as alb
 from albumentations.pytorch import ToTensorV2
-from torchvision.transforms import v2 as v2_transforms
 from torch.utils.data import Dataset
 
-from image_utils import extract_tiles
+from utils.image_utils import extract_tiles
 
 
 class PandasDataset(Dataset):
@@ -33,12 +32,13 @@ class PandasDataset(Dataset):
         # size of the composite image
         self.img_size = dataset_cfg.img_size
 
-        # which fold is being held-out
+        # which fold is being held-out (AKA used for validation)
         self.kfold = dataset_cfg.kfold
 
         # CSV-format file giving the image ID, source, Gleason scores, etc.
         self.image_meta_path = dataset_cfg.image_meta_path
         self.image_meta_df = pd.read_csv(self.image_meta_path)
+        self._process_image_meta()
 
         self.randomize_tiles = dataset_cfg.randomize_tiles
         self.random_rotate_tile = dataset_cfg.random_rotate_tile
@@ -89,6 +89,21 @@ class PandasDataset(Dataset):
         # as the target, etc.
         return image, (isup_grade, gleason_score, data_provider)
 
+    def _process_image_meta(self):
+        '''
+        Based on the fit/validation phase, we leave out
+        certain data based on the chosen k-fold (if provided)
+        '''
+        if self.kfold is not None:
+            holdout = self.image_meta_df.kfold == self.kfold
+            if self.phase == 'fit':
+                self.image_meta_df = self.image_meta_df.loc[~holdout]
+            elif self.phase == 'validate':
+                self.image_meta_df = self.image_meta_df.loc[holdout]
+            else:
+                raise Exception('If you specify a k-fold, you should either be'
+                                ' training or validating.')
+ 
     def _transform_composite(self, img):
         '''
         Performs some pre-processing/normalization on
@@ -220,8 +235,6 @@ class PandasDataModule(LightningDataModule):
         self.batch_size = dataset_cfg.batch_size
         self.num_workers = dataset_cfg.num_workers
         self.seed = dataset_cfg.seed
-        self.train_fraction = dataset_cfg.train_fraction
-        self.validation_fraction = 1 - self.train_fraction
 
         # create transform/augmentations for each phase
         self._set_transforms(dataset_cfg)
@@ -270,27 +283,31 @@ class PandasDataModule(LightningDataModule):
 
     def setup(self, stage):
         
-        if stage == 'fit' or stage is None:
-            full_train_dataset = PandasDataset(self.dataset_cfg,
+        if stage == 'fit':
+
+            # Note that based on the parameters passed into
+            # the PandasDataset constructor (via self.dataset_cfg)
+            # the train and validation parts are "pre-determined"
+            # by the info in the training metadata file. Therefore,
+            # we don't have to use `torch.utils.data.random_split`
+            # or anything similar
+            self.train_dataset = PandasDataset(self.dataset_cfg,
                                                stage,
                                                self._train_transforms)
-            full_validation_dataset = PandasDataset(self.dataset_cfg,
+        elif stage == 'validate':
+            self.val_dataset = PandasDataset(self.dataset_cfg,
                                                     stage,
                                                     self._validation_transforms)
 
-            # now do a train/validation split:
-            split_fractions = [self.train_fraction, self.validation_fraction]
-            self.train_dataset, _ = random_split(
-                full_train_dataset, split_fractions,
-                generator=Generator().manual_seed(self.seed))
-            _, self.val_dataset = random_split(
-                full_validation_dataset, split_fractions,
-                generator=Generator().manual_seed(self.seed))
-
-        if stage == 'test' or stage == 'predict':
+        elif stage == 'test' or stage == 'predict':
             self.test_dataset = PandasDataset(self.dataset_cfg,
                                               stage,
                                               self._test_transforms)
+        else:
+            # stage has values of only {fit, validate, test, predict}
+            # but raise an exception here just so all the conditionals
+            # are resolved
+            raise Exception('Received invalid stage in DataModule.setup')
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset,
