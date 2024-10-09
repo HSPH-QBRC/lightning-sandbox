@@ -21,7 +21,7 @@ def main(cfg):
                       callbacks=[
                           LearningRateMonitor(logging_interval="step"),
                           ModelCheckpoint(
-                              filename='{epoch}-{val_loss:.2f}-{other_metric:.2f}'
+                              filename='{epoch}-{val_loss:.2f}-{other_metric:.2f}',
                               save_last=True,
                               monitor='val_loss',
                               mode='min'
