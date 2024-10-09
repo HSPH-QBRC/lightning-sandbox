@@ -18,6 +18,7 @@ def main(cfg):
     trainer = Trainer(accelerator='auto',
                       devices='auto',
                       max_epochs=cfg.trainer.max_epochs,
+                      accumulate_grad_batches=cfg.trainer.grad_acc,
                       callbacks=[
                           LearningRateMonitor(logging_interval="step"),
                           ModelCheckpoint(

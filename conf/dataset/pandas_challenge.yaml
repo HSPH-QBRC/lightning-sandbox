@@ -1,7 +1,7 @@
 dataset_name: pandas_challenge
 base_dir: 
 image_meta_path:
-batch_size: 32
+batch_size: 6
 seed: 42
 kfold:
 num_grades: 5

@@ -23,3 +23,9 @@ dataset:
 
 trainer:
   max_epochs: 10
+
+  # how many batches should be seen before accumulating
+  # gradients during training. Effectively increases
+  # batch size while staying within the available
+  # device memory
+  grad_acc: 1
