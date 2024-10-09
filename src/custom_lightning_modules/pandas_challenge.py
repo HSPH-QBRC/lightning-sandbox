@@ -19,11 +19,11 @@ class PandasModule(LightningModule):
         self.model = model
         self.loss_fn = nn.BCEWithLogitsLoss()
         self.train_acc = Accuracy(task="multiclass",
-                                  num_classes=self.cfg.dataset.num_grades)
+                                  num_classes=self.config.dataset.num_grades)
         self.valid_acc = Accuracy(task="multiclass",
-                                  num_classes=self.cfg.dataset.num_grades)
+                                  num_classes=self.config.dataset.num_grades)
         self.test_acc = Accuracy(task="multiclass",
-                                  num_classes=self.cfg.dataset.num_grades)
+                                  num_classes=self.config.dataset.num_grades)
         self.save_hyperparameters(ignore=['model'])
 
     def training_step(self, batch, batch_idx):
