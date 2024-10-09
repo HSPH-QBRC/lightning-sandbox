@@ -14,7 +14,8 @@ def load_optimizer_and_lr_scheduler(model_params, cfg, trainer):
 
     # we require an optimizer
     if 'optimizer' not in cfg:
-        raise Exception('You need to specify an optimizer.')
+        sys.stderr.write('You need to specify an optimizer.')
+        sys.exit(1)
 
     optimizer_name = cfg.optimizer.name
     try:
@@ -23,7 +24,7 @@ def load_optimizer_and_lr_scheduler(model_params, cfg, trainer):
     except AttributeError as ex:
         sys.stderr.write('Could not locate an optimizer with'
                          f' name {optimizer_name}')
-        raise ex
+        sys.exit(1)
 
     # learning-rate schedulers are NOT required, so they might not be included
     if 'lr_scheduler' in cfg:

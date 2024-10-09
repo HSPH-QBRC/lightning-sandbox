@@ -23,4 +23,5 @@ def load_dataset(dataset_cfg):
         sys.stderr.write('Could not locate dataset identified by'
                          f' {dataset_cfg.dataset_name}. Available names are'
                          f' {",".join(AVAILABLE_DATASETS.keys())}')
+        sys.exit(1)
     return dataset_class(dataset_cfg)

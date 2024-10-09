@@ -22,6 +22,6 @@ def load_scheduler(scheduler_cfg, optimizer, trainer):
     except KeyError as ex:
         sys.stderr.write('The learning rate scheduler identified by'
                          f' the name {scheduler_name} was not found')
-        raise ex
+        sys.exit(1)
 
     return lr_scheduler_cls(scheduler_cfg, optimizer, trainer)
