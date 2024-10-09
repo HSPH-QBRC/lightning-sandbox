@@ -10,7 +10,7 @@ from checkpoints.pandas_challenge import PandasChallengeCheckpoint
 
 class PandasModule(LightningModule):
 
-    NAME = 'pandas_challennge'
+    NAME = 'pandas_challenge'
 
     def __init__(self, model, cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)

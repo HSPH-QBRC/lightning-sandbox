@@ -1,9 +1,11 @@
 import sys
 
 from .basic_classifier import BasicClassifierModule
+from .pandas_challenge import PandasModule
 
 PL_MODULE_LIST = [
-    BasicClassifierModule
+    BasicClassifierModule,
+    PandasModule
 ]
 
 AVAILABLE_MODULES = {x.NAME: x for x in PL_MODULE_LIST}
