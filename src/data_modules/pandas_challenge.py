@@ -323,6 +323,7 @@ class PandasDataModule(LightningDataModule):
         elif stage == 'test' or stage == 'predict':
             self.test_dataset = PandasDataset(self.dataset_cfg,
                                               stage,
+                                              self.image_meta_df,
                                               self._test_transforms)
         else:
             # stage has values of only {fit, validate, test, predict}
