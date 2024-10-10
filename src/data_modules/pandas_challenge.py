@@ -16,7 +16,7 @@ from utils.image_utils import extract_tiles
 
 class PandasDataset(Dataset):
 
-    def __init__(self, dataset_cfg, phase, transform):
+    def __init__(self, dataset_cfg, phase, image_meta_df, transform):
         super().__init__()
 
         self.phase = phase
@@ -34,14 +34,8 @@ class PandasDataset(Dataset):
         # which fold is being held-out (AKA used for validation)
         self.kfold = dataset_cfg.kfold
 
-        # CSV-format file giving the image ID, source, Gleason scores, etc.
-        self.image_meta_path = dataset_cfg.image_meta_path
-        self.image_meta_df = pd.read_csv(self.image_meta_path)
-
-        # this method permits us to modify `self.image_meta_df` to
-        # change the 'pool' of potential source images for the 
-        # particular dataset. See the method for details.
-        self._process_image_meta()
+        # Dataframe giving the image ID, source, Gleason scores, etc.
+        self.image_meta_df = image_meta_df
 
         if self.phase == 'fit':
             self.randomize_tiles = dataset_cfg.randomize_tiles
@@ -100,21 +94,6 @@ class PandasDataset(Dataset):
         # as the target, etc.
         return image, (isup_grade, gleason_score, data_provider)
 
-    def _process_image_meta(self):
-        '''
-        Based on the fit/validation phase, we leave out
-        certain data based on the chosen k-fold (if provided)
-        '''
-        if self.kfold is not None:
-            holdout = self.image_meta_df.kfold == self.kfold
-            if self.phase == 'fit':
-                self.image_meta_df = self.image_meta_df.loc[~holdout]
-            elif self.phase == 'validate':
-                self.image_meta_df = self.image_meta_df.loc[holdout]
-            else:
-                raise Exception('If you specify a k-fold, you should either be'
-                                ' training or validating.')
- 
     def _transform_composite(self, img):
         '''
         Performs some pre-processing/normalization on
@@ -256,7 +235,13 @@ class PandasDataModule(LightningDataModule):
         self.seed = dataset_cfg.seed
 
         # create transform/augmentations for each phase
-        self._set_transforms(dataset_cfg)
+        self._set_transforms()
+
+        # load the image metadata (which has the training folds).
+        # Used when creating train/validation splits in the `setup`
+        # method
+        self.image_meta_path = self.dataset_cfg.image_meta_path
+        self.image_meta_df = pd.read_csv(self.image_meta_path)
 
     def _create_transforms(self, aug_cnf):
         '''
@@ -281,24 +266,24 @@ class PandasDataModule(LightningDataModule):
             augs = [get_object(aug) for aug in aug_cnf]
         return augs
 
-    def _get_transforms_for_phase(self, dataset_cfg, phase):
+    def _get_transforms_for_phase(self, phase):
         key = f'{phase}_augmentations'
-        if key in dataset_cfg:
-            augmentations_cfg = dataset_cfg[key]
+        if key in self.dataset_cfg:
+            augmentations_cfg = self.dataset_cfg[key]
         else:
             augmentations_cfg = None
         transform_list = self._create_transforms(augmentations_cfg)
         transform_list.append(ToTensorV2())
         return alb.Compose(transform_list)
 
-    def _set_transforms(self, dataset_cfg):
+    def _set_transforms(self):
         '''
         Called by __init__ to set attributes for train/validation/test
         transformations/augmentations
         '''          
-        self._train_transforms = self._get_transforms_for_phase(dataset_cfg, 'fit')
-        self._validation_transforms = self._get_transforms_for_phase(dataset_cfg, 'validate')
-        self._test_transforms = self._get_transforms_for_phase(dataset_cfg, 'test')
+        self._train_transforms = self._get_transforms_for_phase('fit')
+        self._validation_transforms = self._get_transforms_for_phase('validate')
+        self._test_transforms = self._get_transforms_for_phase('test')
 
     def setup(self, stage):
         
@@ -310,12 +295,29 @@ class PandasDataModule(LightningDataModule):
             # by the info in the training metadata file. Therefore,
             # we don't have to use `torch.utils.data.random_split`
             # or anything similar
-            self.train_dataset = PandasDataset(self.dataset_cfg,
-                                               stage,
-                                               self._train_transforms)
+
+            if self.dataset_cfg.kfold is not None:
+                holdout = self.image_meta_df.kfold == self.kfold
+                train_image_meta_df = self.image_meta_df.loc[~holdout]
+                val_image_meta_df = self.image_meta_df.loc[holdout]
+                self.train_dataset = PandasDataset(self.dataset_cfg,
+                                                   stage,
+                                                   train_image_meta_df,
+                                                   self._train_transforms)
+                self.val_dataset = PandasDataset(self.dataset_cfg,
+                                                   stage,
+                                                   val_image_meta_df,
+                                                   self._train_transforms)
+            else:
+                raise Exception('Need to specify a fold at this time.')
+
+
         elif stage == 'validate':
+            holdout = self.image_meta_df.kfold == self.kfold
+            val_image_meta_df = self.image_meta_df.loc[holdout]
             self.val_dataset = PandasDataset(self.dataset_cfg,
                                                     stage,
+                                                    val_image_meta_df,
                                                     self._validation_transforms)
 
         elif stage == 'test' or stage == 'predict':
