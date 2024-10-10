@@ -206,7 +206,7 @@ class PandasDataset(Dataset):
         if self.phase in ['fit', 'validate']:
             paths = [
                 Path(f'{img_dir}/{image_id}_{i}.png')
-                for i in range(self.num_tile)
+                for i in range(self.num_tiles)
             ]
             return self._get_tiles_from_paths(paths)
         else: # test/predict
