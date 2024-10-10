@@ -1,7 +1,6 @@
 import numpy as np
-
 from pytorch_lightning import LightningModule
-from torch import nn
+import torch
 from torchmetrics import Accuracy
 
 from optimizers import load_optimizer_and_lr_scheduler
@@ -17,7 +16,7 @@ class PandasModule(LightningModule):
 
         self.config = cfg
         self.model = model
-        self.loss_fn = nn.BCEWithLogitsLoss()
+        self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.train_acc = Accuracy(task="multiclass",
                                   num_classes=self.config.dataset.num_grades)
         self.valid_acc = Accuracy(task="multiclass",
@@ -102,9 +101,9 @@ class PandasModule(LightningModule):
             grade is 3, the first 3 entries are 1's). This
             function does that conversion using numpy broadcasting
             '''
-            v = np.arange(n)[np.newaxis, :]
-            grades = grades.numpy()[:, np.newaxis]
-            return (v < grades).astype(np.int32)
+            v = torch.Tensor(np.arange(n)[np.newaxis, :])
+            grades = grades.unsqueeze(1)
+            return (v < grades).int()
 
         # each of those is some iterable with batch-size length:
         isup_grades, gleason_scores, data_providers = y
