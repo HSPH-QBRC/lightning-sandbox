@@ -78,3 +78,13 @@ class EfficientNetB1Model(nn.Module):
             nn.Dropout(p=dropout, inplace=True),
             nn.Linear(in_features, out_features),
         )
+
+    def forward(self, x):
+        '''
+        The forward pass through the network.
+
+        `x` is a batch of images,
+        e.g. x.shape = [batch_size. C, H, W] where H,W are
+        image height and width.
+        '''
+        return self.net(x)
