@@ -103,7 +103,7 @@ class PandasModule(LightningModule):
             function does that conversion using numpy broadcasting
             '''
             v = np.arange(n)[np.newaxis, :]
-            grades = grades[:, np.newaxis]
+            grades = grades.numpy()[:, np.newaxis]
             return (v < grades).astype(np.int32)
 
         # each of those is some iterable with batch-size length:
