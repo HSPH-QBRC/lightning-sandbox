@@ -31,9 +31,6 @@ class PandasDataset(Dataset):
         # size of the composite image
         self.img_size = dataset_cfg.img_size
 
-        # which fold is being held-out (AKA used for validation)
-        self.kfold = dataset_cfg.kfold
-
         # Dataframe giving the image ID, source, Gleason scores, etc.
         self.image_meta_df = image_meta_df
 
@@ -297,7 +294,7 @@ class PandasDataModule(LightningDataModule):
             # or anything similar
 
             if self.dataset_cfg.kfold is not None:
-                holdout = self.image_meta_df.kfold == self.kfold
+                holdout = self.image_meta_df.kfold == self.dataset_cfg.kfold
                 train_image_meta_df = self.image_meta_df.loc[~holdout]
                 val_image_meta_df = self.image_meta_df.loc[holdout]
                 self.train_dataset = PandasDataset(self.dataset_cfg,
@@ -313,7 +310,7 @@ class PandasDataModule(LightningDataModule):
 
 
         elif stage == 'validate':
-            holdout = self.image_meta_df.kfold == self.kfold
+            holdout = self.image_meta_df.kfold == self.dataset_cfg.kfold
             val_image_meta_df = self.image_meta_df.loc[holdout]
             self.val_dataset = PandasDataset(self.dataset_cfg,
                                                     stage,
