@@ -101,9 +101,9 @@ class PandasModule(LightningModule):
             grade is 3, the first 3 entries are 1's). This
             function does that conversion using numpy broadcasting
             '''
-            v = torch.Tensor(np.arange(n)[np.newaxis, :])
-            grades = grades.unsqueeze(1)
-            return (v < grades).int()
+            v = torch.tensor(np.arange(n)[np.newaxis, :], device=self.device)
+            grades = grades[:, np.newaxis]
+            return (v < grades).float()
 
         # each of those is some iterable with batch-size length:
         isup_grades, gleason_scores, data_providers = y
@@ -111,10 +111,13 @@ class PandasModule(LightningModule):
         output_channels = self.config.model.params.output_channels
 
         if output_channels == 10:
-            gleason_first = np.array([int(x.split("+")[0]) for x in gleason_scores])
+            gleason_scores = list(map(lambda x: '0+0' if x=='negative' else x, gleason_scores))
+            gleason_first = torch.tensor(
+                np.array([int(x.split("+")[0]) for x in gleason_scores]),
+                device=self.device)
             m1 = encode_grades(5, isup_grades)
             m2 = encode_grades(5, gleason_first)
-            return np.concatenate([m1,m2], axis=1)
+            return torch.cat([m1,m2], axis=1)
         elif output_channels == 5:
             return encode_grades(5, isup_grades)
         else:
