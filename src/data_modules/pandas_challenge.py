@@ -1,15 +1,14 @@
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-
-import cv2
-
-from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader
 import albumentations as alb
 from albumentations.pytorch import ToTensorV2
-from torch.utils.data import Dataset
+import cv2
+import numpy as np
+import pandas as pd
+from pytorch_lightning import LightningDataModule
+import skimage.io
+from torch.utils.data import DataLoader, \
+    Dataset
 
 from utils.image_utils import extract_tiles
 
@@ -107,7 +106,7 @@ class PandasDataset(Dataset):
         '''
         n = int(np.sqrt(self.num_tiles))
         grid_idx = np.arange(self.num_tiles).reshape(n, n)
-        return cv2.hconcat([cv2.vconcat(tiles[ts]) for ts in grid_idx])
+        return np.hstack([np.vstack(tiles[ts]) for ts in grid_idx])
 
     def _tile_augmentation(self,
         tiles,
@@ -168,10 +167,7 @@ class PandasDataset(Dataset):
         Each item in that n-length array is itself a 2-d numpy array 
         representing a tile
         '''
-        # cv2.imread is in BGR so we convert:
-        tiles = np.array([
-            cv2.cvtColor(cv2.imread(p), cv2.COLOR_BGR2RGB) for p in paths])
-        return tiles
+        return np.array([skimage.io.imread(p) for p in paths])
 
     def _get_input_tile_dir(self, image_id):
         '''
