@@ -19,7 +19,7 @@ dataset:
   # Relative to the current working directory (before any Hydra
   # chdir changes).
   base_dir: datasets
-  num_workers: 4
+  num_workers: 1
 
 trainer:
   max_epochs: 10
