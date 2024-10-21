@@ -1,4 +1,5 @@
 import hydra
+import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, \
     ModelCheckpoint
@@ -8,6 +9,7 @@ from models import load_model
 from custom_lightning_modules import load_pl_module
 from data_modules import load_dataset
 
+torch.set_float32_matmul_precision('medium')
 
 @hydra.main(version_base='1.3', config_path="../conf", config_name="config")
 def main(cfg):
