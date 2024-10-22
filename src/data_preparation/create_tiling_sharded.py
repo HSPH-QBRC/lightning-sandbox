@@ -62,11 +62,12 @@ def main():
     assert(output_dir.exists())
 
     # filter for the images of interest:
-    train_metadata = train_metadata.loc[train_metadata.image_subdir == shard]
+    train_metadata = train_metadata.loc[train_metadata.shard == shard]
 
     for i, row in train_metadata.iterrows():
         image_id = row['image_id']
-        img_path = input_dir / str(shard) / f'{image_id}.tiff'
+        image_subdir = row['image_subdir']
+        img_path = input_dir / str(image_subdir) / f'{image_id}.tiff'
 
         # tiles is an array of shape (n_tiles, tile_size, tile_size, 3)
         tiles, _ = extract_tiles(img_path,
@@ -75,7 +76,7 @@ def main():
                                  mode=mode)
         for ii in range(n_tiles):
             t = tiles[ii, :].astype(np.uint8)
-            fout = output_dir / str(shard) / f'{image_id}_{ii}.png'
+            fout = output_dir / str(image_subdir) / f'{image_id}_{ii}.png'
             skimage.io.imsave(fout, t)
 
 
