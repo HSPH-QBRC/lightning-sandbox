@@ -3,14 +3,11 @@
 # for a sharded creation of input tile images.
 
 import argparse
-from logging import root
 from pathlib import Path
 
 import pandas as pd
 import numpy as np
 
-# the maximum number of files permitted in a single directory
-N_FILES_MAX = 9999
 
 # we plan to create a tree of directories. Each leaf 
 # directory will contain the num_tiles number of images.
