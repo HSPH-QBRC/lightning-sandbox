@@ -83,8 +83,8 @@ def main():
     # images, then dir_levels would be 2.0 and n_dirs = 224. Thus, at the top-level
     # of the hierachy, we would have 224 folders. At the second level, we would place
     # 224 directories in each of the parents until we reach the desired 50k directories.
-    dir_levels = np.round(np.log(n_fullsize_train_imgs)/np.log(TARGET_N_DIRS))
-    dirs_per_level = np.ceil(np.power(n_fullsize_train_imgs, 1/dir_levels))
+    dir_levels = int(np.round(np.log(n_fullsize_train_imgs)/np.log(TARGET_N_DIRS)))
+    dirs_per_level = int(np.ceil(np.power(n_fullsize_train_imgs, 1/dir_levels)))
 
     # pre-create the subdirs- not that this will create extra empty dirs if the
     # number of full-size images is not equal to dirs_per_level^dir_levels. Hence the truncation
