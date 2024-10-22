@@ -89,6 +89,7 @@ def main():
     # pre-create the subdirs- not that this will create extra empty dirs if the
     # number of full-size images is not equal to dirs_per_level^dir_levels. Hence the truncation
     image_subdirs = construct_hierarchy(output_dir, dirs_per_level, dir_levels, 1, n_fullsize_train_imgs)[:n_fullsize_train_imgs]
+    image_subdirs = [x.relative_to(output_dir) for x in image_subdirs]
 
     # Specify which images will go to which subdirectories.
     train_metadata['image_subdir'] = image_subdirs
