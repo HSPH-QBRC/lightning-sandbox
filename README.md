@@ -8,9 +8,23 @@ Configuration files are contained in the `conf/` folder. Contents of that folder
 
 ## Docker
 
-The development environment is controlled via Docker. All relevant files for the Docker build process are contained in the `docker/` directory.
+The development environment is controlled via Docker. All relevant files for the Docker build process are contained in the `docker/` directory. This is primarily for local development (without any GPU-related libraries like CUDA), for help within the IDE.
 
 Note that the VSCode `.devcontainer/devcontainer.json` file references this folder for an automated build process.
+
+## Conda (on FASRC)
+
+Note that on FASRC (Cannon), use the files in the `conda/` directory. The environment file (`conda/env.yaml`) has packages for interacting with GPUs (CUDA libraries) on Cannon. 
+
+After selecting an appropriate queue, load the mamba module:
+```
+module load Mambaforge
+```
+Then create the environment with:
+```
+mamba env create -f conda/env.yaml
+```
+Then activate and use.
 
 ## Running
 
