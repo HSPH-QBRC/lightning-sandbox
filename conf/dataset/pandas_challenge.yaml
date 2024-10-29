@@ -4,6 +4,7 @@ image_meta_path:
 batch_size: 6
 seed: 42
 kfold:
+resolution:
 num_grades: 5
 randomize_tiles: True
 random_rotate_tile: False

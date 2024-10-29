@@ -30,6 +30,10 @@ class PandasDataset(Dataset):
         # size of the composite image
         self.img_size = dataset_cfg.img_size
 
+        # resolution level of the tiled images (which level of
+        # the TIFF they were extracted from)
+        self.img_resolution = dataset_cfg.resolution
+
         # Dataframe giving the image ID, source, Gleason scores, etc.
         self.image_meta_df = image_meta_df
 
@@ -55,7 +59,7 @@ class PandasDataset(Dataset):
         # they are just the 'root'
         self.base_input_tile_dir = dataset_cfg.base_dir
         self.train_input_tile_dirs = [
-            f'{self.base_input_tile_dir}/numtile-{self.num_tiles}-tilesize-{self.tile_size}-res-0-mode-{m}'
+            f'{self.base_input_tile_dir}/numtile-{self.num_tiles}-tilesize-{self.tile_size}-res-{self.img_resolution}-mode-{m}'
             for m in [0, 2]
         ]
 
