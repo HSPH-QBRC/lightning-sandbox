@@ -1,8 +1,8 @@
 import numpy as np
-import skimage.io
+import openslide
 
 
-def extract_tiles(img_path, num_tiles=64, tile_size=192, mode=0):
+def extract_tiles(img_path, num_tiles=64, tile_size=192, resolution=1, mode=0):
     '''
     Opens the image located at the provided path and extracts 
     the requested number of tiles of shape (tile_shape, tile_shape)
@@ -11,7 +11,15 @@ def extract_tiles(img_path, num_tiles=64, tile_size=192, mode=0):
 
     # Note that the image is given in (H,W,C) and the color channels are RGB
     # (in contrast to cv2.imread which loads BGR)
-    img = skimage.io.imread(img_path)
+    o = openslide.OpenSlide(img_path)
+    level_dimensions = o.level_dimensions
+    # the cast of the PIL Image to np array has 4 dimensions
+    # so we discard the alpha channel which has min = max = 255
+    img = np.array(o.read_region(
+        (0,0),
+        resolution,
+        level_dimensions[resolution]
+    ))[:,:,:3]
     h, w, c = img.shape
 
     # Padding which will permit an integer number of (tile_size, tile_size) tiles
