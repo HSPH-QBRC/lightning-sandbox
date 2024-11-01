@@ -17,6 +17,8 @@ class PandasModule(LightningModule):
         self.config = cfg
         self.model = model
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
+        self.output_channels = self.config.model.params.output_channels
+
         self.train_acc = Accuracy(task="multiclass",
                                   num_classes=self.config.dataset.num_grades)
         self.valid_acc = Accuracy(task="multiclass",
@@ -108,9 +110,7 @@ class PandasModule(LightningModule):
         # each of those is some iterable with batch-size length:
         isup_grades, gleason_scores, data_providers = y
 
-        output_channels = self.config.model.params.output_channels
-
-        if output_channels == 10:
+        if self.output_channels == 10:
             gleason_scores = list(map(lambda x: '0+0' if x=='negative' else x, gleason_scores))
             gleason_first = torch.tensor(
                 np.array([int(x.split("+")[0]) for x in gleason_scores]),
@@ -118,7 +118,7 @@ class PandasModule(LightningModule):
             m1 = encode_grades(5, isup_grades)
             m2 = encode_grades(5, gleason_first)
             return torch.cat([m1,m2], axis=1)
-        elif output_channels == 5:
+        elif self.output_channels == 5:
             return encode_grades(5, isup_grades)
         else:
             raise NotImplementedError('Labels are not available for'
@@ -181,7 +181,10 @@ class PandasModule(LightningModule):
         and run through a sigmoid. Then, that is summed to produce
         some number in the range [0,5]. Those are then rounded
         '''
-        return logits.sigmoid().sum(axis=1).round()
+        if self.output_channels == 5:
+            return logits.sigmoid().sum(axis=1).round()
+        elif self.output_channels == 10:
+            return logits[:,:5].sigmoid().sum(axis=1).round()
 
     def _calculate_accuracy(self, logits, target_meta, metric_key, metric):
         '''
