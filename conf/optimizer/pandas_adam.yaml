@@ -1,4 +1,4 @@
 name: Adam
 params: 
-  lr: 0.00003
+  lr: 0.0001
   amsgrad: False

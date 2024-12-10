@@ -15,6 +15,7 @@ class PandasModule(LightningModule):
         super().__init__(*args, **kwargs)
 
         self.config = cfg
+        self.debug = self.config.debug
         self.model = model
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.output_channels = self.config.model.params.output_channels
@@ -108,7 +109,7 @@ class PandasModule(LightningModule):
             return (v < grades).float()
 
         # each of those is some iterable with batch-size length:
-        isup_grades, gleason_scores, data_providers = y
+        isup_grades, gleason_scores, data_providers, imd_ids = y
 
         if self.output_channels == 10:
             gleason_scores = list(map(lambda x: '0+0' if x=='negative' else x, gleason_scores))
@@ -202,7 +203,7 @@ class PandasModule(LightningModule):
         '''
         # We track the performance by measuring the grade
         # prediction accuracy.
-        isup_grades, _, _ = target_meta
+        isup_grades, _, _, _ = target_meta
 
         predictions = self._make_prediction(logits)
         metric(predictions, isup_grades)

@@ -92,7 +92,7 @@ class PandasDataset(Dataset):
         # return the image PLUS some metadata- the model
         # will handle how this additional metadata is encoded
         # as the target, etc.
-        return image, (isup_grade, gleason_score, data_provider)
+        return image, (isup_grade, gleason_score, data_provider, row['image_id'])
 
     def _transform_composite(self, img):
         '''

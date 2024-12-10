@@ -4,6 +4,8 @@ defaults:
   
 mode: train
 
+debug: false
+
 general:
 
   # Dictates whether we allow executions from a 
