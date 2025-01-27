@@ -1,9 +1,11 @@
 import sys
 
 from .basic_classifier import BasicClassifierModule
+from .pandas_challenge import PandasModule
 
 PL_MODULE_LIST = [
-    BasicClassifierModule
+    BasicClassifierModule,
+    PandasModule
 ]
 
 AVAILABLE_MODULES = {x.NAME: x for x in PL_MODULE_LIST}
@@ -23,4 +25,5 @@ def load_pl_module(cfg, selected_model):
         sys.stderr.write('Could not locate a LightningModule subclass'
                          f'  identified by{cfg.pl_module.name}. Available'
                          f' names are {",".join(AVAILABLE_MODULES.keys())}')
+        sys.exit(1)
     return pl_module_class(selected_model, cfg)

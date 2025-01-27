@@ -1,0 +1,4 @@
+model_name: pandas_efficientnet_b1
+params:
+    output_channels: 10
+    dropout: 0.2

@@ -1,9 +1,11 @@
 import sys
 
+from lr_schedulers.cosine_annealing import CosineAnnealing
 from lr_schedulers.onecycle import OneCycle
 
 AVAILABLE_SCHEDULERS = {
-    'onecycle': OneCycle
+    'onecycle': OneCycle,
+    'cosine_annealing': CosineAnnealing
 }
 
 
@@ -20,6 +22,6 @@ def load_scheduler(scheduler_cfg, optimizer, trainer):
     except KeyError as ex:
         sys.stderr.write('The learning rate scheduler identified by'
                          f' the name {scheduler_name} was not found')
-        raise ex
+        sys.exit(1)
 
     return lr_scheduler_cls(scheduler_cfg, optimizer, trainer)

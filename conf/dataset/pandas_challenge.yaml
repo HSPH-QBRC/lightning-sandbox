@@ -1,0 +1,47 @@
+dataset_name: pandas_challenge
+base_dir: 
+image_meta_path:
+batch_size: 6
+seed: 42
+kfold:
+resolution:
+num_grades: 5
+randomize_tiles: True
+random_rotate_tile: False
+random_tile_white: False
+fit_augmentations:
+  - name: Transpose
+    params:
+        p: 1.0
+  - name: HorizontalFlip
+    params:
+        p: 0.5
+  - name: VerticalFlip
+    params:
+        p: 0.5
+  - name: RandomRotate90
+    params:
+        p: 0.5
+  - name: ShiftScaleRotate
+    params:
+        p: 0.5
+        rotate_limit: 10
+        shift_limit: 0.05
+        scale_limit: 0.05
+  - name: OneOf
+    options:
+        - name: ElasticTransform
+          params:
+              alpha: 120
+              sigma: 6
+              p: 0.5
+        - name: GridDistortion
+          params:
+              p: 0.5
+        - name: OpticalDistortion
+          params:
+              distort_limit: 0.1
+              shift_limit: 0.1
+              p: 0.5
+    params:
+        p: 0.5

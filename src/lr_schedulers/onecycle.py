@@ -4,7 +4,7 @@ from torch.optim.lr_scheduler import OneCycleLR
 class OneCycle(OneCycleLR):
     '''
     This is a thin wrapper around a torch.optim.lr_scheduler.OneCycleLR
-    scheduler wjocj allows us to pass information about the
+    scheduler which allows us to pass information about the
     training set details. The wrapping permits us to more generically
     instantiate class instances in this package's __init__.py
     '''
