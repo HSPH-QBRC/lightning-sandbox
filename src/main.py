@@ -30,7 +30,12 @@ def main(cfg):
                               mode='min'
                           )
                         ])
-    trainer.fit(model=pl_module, datamodule=datamodule)
+    
+    # to restart from a saved checkpoint:
+    if 'ckpt_path' in cfg:
+        trainer.fit(model=pl_module, datamodule=datamodule, ckpt_path=cfg.ckpt_path)
+    else:
+        trainer.fit(model=pl_module, datamodule=datamodule)
 
 
 if __name__ == "__main__":
