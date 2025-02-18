@@ -24,6 +24,8 @@ class BasicClassifierModule(LightningModule):
                                   num_classes=self.model.num_classes)
         self.valid_acc = Accuracy(task="multiclass",
                                   num_classes=self.model.num_classes)
+        self.test_acc = Accuracy(task="multiclass",
+                                  num_classes=self.model.num_classes)
 
     def configure_optimizers(self):
         optimizer, lr_scheduler = load_optimizer_and_lr_scheduler(
@@ -118,6 +120,20 @@ class BasicClassifierModule(LightningModule):
         # specific to validation, track the loss so we can determine
         # if overfitting
         self.log('val_loss', validation_loss)
+
+    def test_step(self, batch, batch_idx):
+        '''
+        This is the standard method to override when executing
+        prediction.
+
+        `batch` is a tuple of inputs and targets.
+        '''
+        x, y = batch
+        logits, _ = self._batchstep(x, y, batch_idx)
+        predictions = self._get_predictions(logits)
+
+        # track our testing accuracy:
+        self._calculate_accuracy(logits, y, 'test_acc', self.test_acc)
 
     def predict_step(self, batch, batch_idx):
         '''
