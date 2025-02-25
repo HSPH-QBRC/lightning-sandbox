@@ -20,8 +20,12 @@ class CIFAR10DataModule(LightningDataModule):
         # each run. Make the data directory outside the
         # run-specific directory so we that we are not
         # constantly downloading data
-        self.data_dir = Path(get_original_cwd()) / \
-            Path(dataset_cfg.base_dir) / Path(CIFAR10DataModule.NAME)
+        try:
+            self.data_dir = Path(get_original_cwd()) / \
+                Path(dataset_cfg.base_dir) / Path(CIFAR10DataModule.NAME)
+        except ValueError:
+            self.data_dir = Path.cwd().parent / \
+                Path(dataset_cfg.base_dir) / Path(CIFAR10DataModule.NAME)
         self.batch_size = dataset_cfg.batch_size
         self.num_workers = dataset_cfg.num_workers
         self.seed = dataset_cfg.seed
