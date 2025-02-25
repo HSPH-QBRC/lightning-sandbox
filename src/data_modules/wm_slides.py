@@ -73,7 +73,7 @@ class WmSlideInferenceDataset(Dataset):
         # return the image PLUS some metadata- the model
         # will handle how this additional metadata is encoded
         # or used
-        return image, (row['image_id'],)
+        return image, row['image_id']
 
     def _transform_composite(self, img):
         '''
