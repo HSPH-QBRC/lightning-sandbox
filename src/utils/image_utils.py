@@ -314,7 +314,7 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
         X2[X2>255] = 254
         return np.reshape(X2.T, shape).astype(np.uint8)
 
-    def _transform_tile(self, tile, H, 
+    def _transform_tile(self, tile, tile_idx, H, 
                         pixel_dist_threshold=10, 
                         min_acceptable_black_pixel_frac=0.1):
 
@@ -345,8 +345,8 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
                 )
             except RuntimeWarning as ex:
                 print(f'Caught a runtime error: {ex}.')
-                err_file = f'{int(time.time())}.C2.error.npy'
-                np.save(err_file, C2)
+                # err_file = f'tile_idx_{tile_idx}.C2.error.npy'
+                # np.save(err_file, C2)
             
         normed_tile[normed_tile>255] = 254
 
@@ -357,7 +357,7 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
         nn = (normed_pixel_dist < pixel_dist_threshold).sum()
         ff = nn/len(normed_pixel_dist)
         if ff > min_acceptable_black_pixel_frac:
-            print(f'Warning!: possible tile exception.')
+            print(f'Warning!: possible tile exception for tile: {tile_idx}.')
             raise Exception('!!!')
 
         normed_tile = np.reshape(normed_tile.T, (h, w, 3)).astype(np.uint8)  
@@ -407,6 +407,16 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
         # sum over each tile, then subtract from 1 since 1=background, 0=foreground
         return np.where((1 - (tile_array.sum(axis=(1,2))/scaled_tile_size**2)) > fg_threshold)[0]
 
+    def _remove_outliers(self, v, threshold=3):
+        '''
+        Using a median absolute deviation strategy, return a boolean
+        array where we mark elements of `v` which are outliers.
+        '''
+        diff = np.sqrt((v - np.median(v))**2)
+        med_abs_deviation = np.median(diff)
+        modified_z_score = 0.6745 * diff / med_abs_deviation
+        return modified_z_score > threshold
+
     def _select_tiles(self, img_path):
         '''
         Applies the method of Macenko (2009) to normalize 
@@ -427,7 +437,6 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
         # passing_tiles has the indices of tiles that pass the thresholding,
         # and we pass that to _get_raw_tiles
         tiles = self._get_raw_tiles(img_path, tile_index_filter=passing_tiles)
-        np.save('first_pass_tiles.npy', tiles)
 
         # now that we have tiles containing foreground content, extract the H component
         # and rank the tiles based on that. This will remove other tissue that does not
@@ -436,10 +445,12 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
         for tile_idx,tile in enumerate(tiles):
             # use the reference H matrix to perform a first-pass on extracting the Hematoxylin component
             try:
-                normed_tile, H_component = self._transform_tile(tile, NormalizingHandETileExtractor.H_REF)
+                normed_tile, H_component = self._transform_tile(tile, tile_idx, NormalizingHandETileExtractor.H_REF)
                 h_vals.append(H_component.sum())
             except:
                 h_vals.append(np.nan)
+
+        h_vals = np.array(h_vals)
 
         # count how many were marked as np.nan by our heuristic
         bad_tile_sum = np.isnan(h_vals).sum()
@@ -452,9 +463,16 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
         # argsort gives ascending order, so the darkest tiles will appear first- we want these.
         # Also trim off the ones that were likely problems.
         tiles = tiles[argsort_h_vals]
+        h_vals = h_vals[argsort_h_vals]
         if bad_tile_sum > 0:
             tiles = tiles[:-bad_tile_sum]
-        print(f'Shape after removing bad tiles from first pass: {tiles.shape}')
+            h_vals = h_vals[:-bad_tile_sum]
+
+        # we have removed outright problem tiles at this point, but there can remain
+        # those that passed threshold, yet are outliers
+        outliers = self._remove_outliers(h_vals)
+        h_vals = h_vals[~outliers]
+        tiles = tiles[~outliers,:,:,:]
 
         # a (3,2) matrix used for projection. Use a sampling of the top tiles which
         # were based on the H_REF matrix. This gets us the customized projection matrix
@@ -465,15 +483,19 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
         h_components = []
         for tile_idx,tile in enumerate(tiles):
             try:
-                normed_tile, H_component = self._transform_tile(tile, H)
+                normed_tile, H_component = self._transform_tile(tile, tile_idx, H)
                 normed_tiles.append(normed_tile)
                 h_components.append(H_component)
             except:
                 print(f'Caught an exception on second-pass transform, index={tile_idx}')
-                np.save(f'problem_tile.{tile_idx}.npy', tile)
 
         normed_tiles = np.stack(normed_tiles)
+
         # using the h_component arrays, get the darkest of those by sorting
-        # and taking the first n_tiles:    
-        idx = np.argsort([x.sum() for x in h_components])[:self.tile_info.n_tiles]
+        # and taking the first n_tiles. We first remove any outliers.
+        h_vals = np.array([x.sum() for x in h_components])
+        outliers = self._remove_outliers(h_vals)
+        h_vals = h_vals[~outliers]
+        normed_tiles = normed_tiles[~outliers]
+        idx = np.argsort(h_vals)[:self.tile_info.n_tiles]
         return normed_tiles[idx]
