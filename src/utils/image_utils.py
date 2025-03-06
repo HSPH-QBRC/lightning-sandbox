@@ -25,14 +25,10 @@ def get_extractor_class(key):
 
 @dataclass
 class TileInfo():
-    metadata_path: Path
-    input_dir: Path
-    output_dir: Path
     n_tiles: int
     tile_size: int
     level: int
     offset_mode: int
-    shard: Optional[int] = None
 
 
 class BaseTileExtractor(object):
@@ -44,38 +40,29 @@ class BaseTileExtractor(object):
     def __init__(self, tile_info):
         self.tile_info = tile_info
 
-        if self.tile_info.shard is not None:
-            self.sharded = True
-            self.shard_num = self.tile_info.shard
-        else:
-            self.sharded = False
-
-        self._prep_metadata()
-        self._create_output_dirs()
-        self._extract()
-
-    def _prep_metadata(self):
-        metadata_df = pd.read_csv(self.tile_info.metadata_path)
-
-        if self.sharded:
-            self.metadata_df = metadata_df.loc[metadata_df.shard == self.shard_num]
-        else:
-            self.metadata_df = metadata_df
-
-    def _create_output_dirs(self):
+    def _create_output_dir(self, output_dir):
 
         # the name of the directory will give info about how the tiles were created
         tile_dir = (f'numtile-{self.tile_info.n_tiles}-tilesize-{self.tile_info.tile_size}'
                     f'-res-{self.tile_info.level}-mode-{self.tile_info.offset_mode}')
-        output_dir = self.tile_info.output_dir / tile_dir
+        output_dir = output_dir / tile_dir
         output_dir.mkdir(parents=True, exist_ok=True)
         self.final_output_dir = output_dir
 
-    def _read_and_pad_img(self, img_path):
-        # for brevity:
+    def _load_image(self, img_path):
+        multilayer_formats = ['svs', 'tiff']
+        if img_path.suffix.lower()[1:] in multilayer_formats:
+            return self._read_multilayer(img_path)
+        else:
+            raise Exception(f'Unexpected format for path: {img_path}')
+
+    def _read_multilayer(self, img_path):
+        '''
+        Opens a multilayer format file (e.g. SVS, TIFF)
+        and returns a numpy array of the pixels at the
+        prescribed level.
+        '''
         level = self.tile_info.level
-        tile_size = self.tile_info.tile_size
-        offset_mode = self.tile_info.offset_mode
 
         o = openslide.OpenSlide(img_path)
 
@@ -88,11 +75,22 @@ class BaseTileExtractor(object):
                             f' {o.level_count} levels')
 
         # in case there is an alpha channel, we take only the RGB channels:
-        img = np.array(o.read_region(
+        return np.array(o.read_region(
             (0,0),
             level,
             level_dimensions[level]
         ))[:,:,:3]
+
+    def _pad_image(self, img):
+        '''
+        Pad the numpy array such that the eventual
+        tiling operations will create an integer number
+        of tiles
+        '''
+        # for brevity:
+        tile_size = self.tile_info.tile_size
+        offset_mode = self.tile_info.offset_mode
+
         h, w, c = img.shape
 
         # Padding which will permit an integer number of (tile_size, tile_size) tiles
@@ -118,11 +116,13 @@ class BaseTileExtractor(object):
         selected based on their grid position. For example, if we are
         looking to tile an image and our tile size is such that we can
         fit (m,n) tiles in the vertical and horizontal directions, then
-        an index filter of k will select/keep the tile at (k//n, k%n)
+        an index filter of `k` will select/keep the tile at (k//n, k%n).
+        This allows us to avoid tiling in regions of largely whitespace, etc.
         '''
         tile_size = self.tile_info.tile_size
 
-        img = self._read_and_pad_img(img_path)
+        img = self._load_image(img_path)
+        img = self._pad_image(img)
 
         if tile_index_filter is not None:
             img_stack = []
@@ -153,36 +153,77 @@ class BaseTileExtractor(object):
             # where N is the number of tiles (i.e. padded size // tile_size)
             return img.transpose(0,2,1,3,4).reshape(-1, tile_size, tile_size, 3)
 
-    def _extract(self):
-        for i, row in self.metadata_df.iterrows():
-            image_id = row['image_id']
+    def _select_tiles(self, img_path):
+        raise NotImplementedError('Need to implement a _select_tiles method'
+                                  ' specific to your application.')
+    
+    def extract(self, img_path):
+        return self._select_tiles(img_path)
 
-            if 'image_subdir' in row:
-                input_image_dir = self.tile_info.input_dir / row['image_subdir']
-                output_dir = self.final_output_dir / row['image_subdir']
-            else:
-                input_image_dir = self.tile_info.input_dir
-                output_dir = self.final_output_dir
+    def _get_image_path(self, image_meta, input_root_dir):
+        '''
+        Given a pd.Series from the image metadata
+        dataframe, find the image and return a path
 
-            img_path = list(input_image_dir.glob(f'{image_id}.*'))
-            if len(img_path) != 1:
-                raise Exception('Could not locate a single file matching'
-                                f' the pattern {image_id}.* in'
-                                f' {input_image_dir}.')
-            else:
-                img_path = img_path[0]
+        `input_root_dir` is a pathlib.Path which locates
+        the top directory of the input directory tree
+        '''
+        image_id = image_meta['image_id']
 
+        if 'image_subdir' in image_meta:
+            input_image_dir = input_root_dir / image_meta['image_subdir']
+        else:
+            input_image_dir = input_root_dir
+
+        img_path = list(input_image_dir.glob(f'{image_id}.*'))
+        if len(img_path) != 1:
+            raise Exception('Could not locate a single file matching'
+                            f' the pattern {image_id}.* in'
+                            f' {input_image_dir}.')
+        else:
+            return img_path[0]
+        
+    def _get_final_output_dir(self, image_meta, output_root_dir):
+        '''
+        Given a pd.Series (`image_meta`) from the image metadata
+        dataframe, return a path to the output folder
+
+        `output_root_dir` is a pathlib.Path to the root of the output
+        directory, which may contain subdirectories
+        '''
+        if 'image_subdir' in image_meta:
+            output_dir = output_root_dir / image_meta['image_subdir']
+            output_dir.mkdir(parents=True, exist_ok=True)
+            return output_dir
+        else:
+            return output_root_dir
+
+    def extract_and_save(self, image_metadata_path, input_root_dir, output_root_dir, shard=None):
+        '''
+        Orchestrates the reading, tile extraction, and saving of tiles for
+        a full dataset
+        '''
+        metadata_df = pd.read_csv(image_metadata_path)
+
+        if shard is not None:
+            self.sharded = True
+            self.shard_num = shard
+            metadata_df = metadata_df.loc[metadata_df.shard == self.shard_num]
+        else:
+            self.sharded = False
+
+        self._create_output_dir(output_root_dir)
+
+        for i, row in metadata_df.iterrows():
+            img_path = self._get_image_path(row, input_root_dir)
+            output_dir = self._get_final_output_dir(row, output_root_dir)
             tiles = self._select_tiles(img_path)
 
             for ii in range(tiles.shape[0]):
                 t = tiles[ii, :].astype(np.uint8)
-                fout = output_dir / f'{image_id}_{ii}.png'
+                fout = output_dir / f'{row['image_id']}.tile_{ii}.png'
                 skimage.io.imsave(fout, t)
 
-    def _select_tiles(self, tiles):
-        raise NotImplementedError('Need to implement a _select_tiles method'
-                                  ' specific to your application.')
-    
 
 class DensityBasedTileExtractor(BaseTileExtractor):
     '''

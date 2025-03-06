@@ -10,7 +10,8 @@ import skimage.io
 from torch.utils.data import DataLoader, \
     Dataset
 
-from utils.image_utils import extract_tiles
+from utils.image_utils import DensityBasedTileExtractor, \
+    TileInfo
 
 
 class PandasDataset(Dataset):
@@ -210,10 +211,10 @@ class PandasDataset(Dataset):
             ]
             return self._get_tiles_from_paths(paths)
         else: # test/predict
-            img_path = Path(f'{img_dir}/{image_id}.tiff')         
-            tiles, _ = extract_tiles(img_path, 
-                                     num_tiles=self.num_tiles,
-                                     tile_size=self.tile_size)
+            img_path = Path(f'{img_dir}/{image_id}.tiff')
+            tile_info = TileInfo(self.num_tiles, self.tile_size, self.img_resolution, 0)
+            extractor = DensityBasedTileExtractor(tile_info)
+            tiles = extractor.extract(img_path)       
             return tiles
 
 

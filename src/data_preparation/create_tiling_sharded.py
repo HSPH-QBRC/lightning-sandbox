@@ -70,20 +70,17 @@ def main():
     image_meta_path = args.train_metadata_file
     tile_extraction_class_key = args.extraction_key
 
-    tile_info = TileInfo(image_meta_path, 
-                         input_dir, 
-                         output_dir, 
-                         n_tiles, 
+    tile_info = TileInfo(n_tiles, 
                          tile_size, 
                          level, 
-                         offset_mode,
-                         shard)
+                         offset_mode)
     
     # will raise an exception if not a valid key
     extractor_class = get_extractor_class(tile_extraction_class_key)
 
     # run the tile extraction
-    extractor_class(tile_info)
+    extractor = extractor_class(tile_info)
+    extractor.extract_and_save(image_meta_path, input_dir, output_dir, shard=shard)
 
 
 if __name__ == '__main__':
