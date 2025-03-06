@@ -10,8 +10,6 @@ import skimage.io
 from torch.utils.data import DataLoader, \
     Dataset
 
-from utils.image_utils import extract_tiles
-
 
 class WmSlideInferenceDataset(Dataset):
     '''
@@ -53,8 +51,7 @@ class WmSlideInferenceDataset(Dataset):
         # For inference, we will only use the '0' mode of the extracted tiles.
         tile_mode = 0
         tiles_root_dir = dataset_cfg.base_dir
-        self.input_tiles_dir = f'{tiles_root_dir}/tiles_res{self.img_resolution}_mode{tile_mode}_num{self.num_tiles}_size{self.tile_size}'
-            
+        self.input_tiles_dir = f'{tiles_root_dir}/numtile-{self.num_tiles}-tilesize-{self.tile_size}-res-{self.img_resolution}-mode-{tile_mode}'            
 
     def __len__(self):
         return self.image_meta_df.shape[0]
@@ -107,7 +104,7 @@ class WmSlideInferenceDataset(Dataset):
         previously extracted from the original image.
         '''
         paths = [
-            Path(f'{self.input_tiles_dir}/{image_id}.tile_{i}.png')
+            Path(f'{self.input_tiles_dir}/{image_id}_{i}.png')
             for i in range(self.num_tiles)
         ]
         return self._get_tiles_from_paths(paths)
