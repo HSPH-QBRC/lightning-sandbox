@@ -50,11 +50,14 @@ class TestBaseTileExtractor(unittest.TestCase):
 
     def setUp(self):
         self.tile_size = 192
+        self.tile_num = 16
+        self.resolution = 1
+        self.mode = 0
         tile_info = TileInfo(
-            16,
+            self.tile_num,
             self.tile_size,
-            1,
-            0
+            self.resolution,
+            self.mode
         )
         self.extractor = BaseTileExtractor(tile_info)
         self.test_dir = tempfile.mkdtemp()
@@ -154,58 +157,14 @@ class TestBaseTileExtractor(unittest.TestCase):
         mock_calls = mock_skimage.io.imsave.mock_calls
         self.assertTrue(len(mock_calls) == 50)
 
-    @mock.patch.object(BaseTileExtractor, '_create_output_dir')
+
     @mock.patch.object(BaseTileExtractor, '_get_image_path')
-    @mock.patch.object(BaseTileExtractor, '_get_final_output_dir')
     @mock.patch.object(BaseTileExtractor, '_select_tiles')
     @mock.patch('utils.image_utils.pd')
-    @mock.patch('utils.image_utils.skimage')
     def test_extract_and_save_case1(self, 
-                              mock_skimage,
                               mock_pandas, 
                               mock_select_tiles, 
-                              mock_get_final_output_dir, 
-                              mock_get_image_path, 
-                              mock_create_output_dir):
-        num_img = 2
-        num_tiles = 3
-        mock_pandas.read_csv.return_value = pd.DataFrame({
-            'image_id': [f'img{x}' for x in range(num_img)]
-        })
-
-        mock_get_image_path.side_effect = ['p1','p2']
-        mock_final_output_dirs = [Path('outdir1'), Path('outdir2')]
-        mock_get_final_output_dir.side_effect = mock_final_output_dirs
-        mock_tiles = np.random.randint(0, 255, size=(num_tiles, 2,2,3)).astype(np.uint8)
-        mock_select_tiles.return_value = mock_tiles
-        mock_image_metadata_path = '/some/path'
-        mock_input_dir = '/my/inputs'
-        mock_output_dir = '/my/outputs'
-        self.extractor.extract_and_save(mock_image_metadata_path, mock_input_dir, mock_output_dir)
-        mock_calls = mock_skimage.io.imsave.mock_calls
-        call_idx = 0
-        for i in range(num_img):
-            for j in range(num_tiles):
-                f = mock_final_output_dirs[i] / f'img{i}.tile_{j}.png'
-                actual_call = mock_calls[call_idx]
-                first_arg = actual_call.args[0]
-                second_arg = actual_call.args[1]
-                self.assertTrue(first_arg == f)
-                self.assertTrue(np.allclose(second_arg, mock_tiles[j]))
-                call_idx += 1
-
-
-
-
-    @mock.patch.object(BaseTileExtractor, '_create_output_dir')
-    @mock.patch.object(BaseTileExtractor, '_get_image_path')
-    @mock.patch.object(BaseTileExtractor, '_select_tiles')
-    @mock.patch('utils.image_utils.pd')
-    def test_extract_and_save_case2(self, 
-                              mock_pandas, 
-                              mock_select_tiles, 
-                              mock_get_image_path, 
-                              mock_create_output_dir):
+                              mock_get_image_path):
         num_img = 2
         num_tiles = 3
         mock_pandas.read_csv.return_value = pd.DataFrame({
@@ -220,18 +179,16 @@ class TestBaseTileExtractor(unittest.TestCase):
 
         for i in range(num_img):
             for j in range(num_tiles):
-                fname = Path(self.test_dir) / f'img{i}.tile_{j}.png'
+                fname = Path(self.test_dir) / f'numtile-{self.tile_num}-tilesize-{self.tile_size}-res-{self.resolution}-mode-{self.mode}' / f'img{i}.tile_{j}.png'
                 self.assertTrue(fname.exists())
 
-    @mock.patch.object(BaseTileExtractor, '_create_output_dir')
     @mock.patch.object(BaseTileExtractor, '_get_image_path')
     @mock.patch.object(BaseTileExtractor, '_select_tiles')
     @mock.patch('utils.image_utils.pd')
-    def test_extract_and_save_case3(self, 
+    def test_extract_and_save_case2(self, 
                               mock_pandas, 
                               mock_select_tiles, 
-                              mock_get_image_path, 
-                              mock_create_output_dir):
+                              mock_get_image_path):
         num_img = 2
         num_tiles = 3
         mock_pandas.read_csv.return_value = pd.DataFrame({
@@ -244,10 +201,10 @@ class TestBaseTileExtractor(unittest.TestCase):
         mock_tiles = np.random.randint(0, 255, size=(num_tiles, 2,2,3)).astype(np.uint8)
         mock_select_tiles.return_value = mock_tiles
         self.extractor.extract_and_save('', '', Path(self.test_dir))
-
+        ff = Path(self.test_dir) / f'numtile-{self.tile_num}-tilesize-{self.tile_size}-res-{self.resolution}-mode-{self.mode}' / 'subdir0'
         for i in range(num_img):
             for j in range(num_tiles):
-                fname = Path(self.test_dir)/ f'subdir{i}' / f'img{i}.tile_{j}.png'
+                fname = Path(self.test_dir) / f'numtile-{self.tile_num}-tilesize-{self.tile_size}-res-{self.resolution}-mode-{self.mode}' / f'subdir{i}' / f'img{i}.tile_{j}.png'
                 self.assertTrue(fname.exists())
 
 

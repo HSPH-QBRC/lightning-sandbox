@@ -47,7 +47,7 @@ class BaseTileExtractor(object):
                     f'-res-{self.tile_info.level}-mode-{self.tile_info.offset_mode}')
         output_dir = output_dir / tile_dir
         output_dir.mkdir(parents=True, exist_ok=True)
-        self.final_output_dir = output_dir
+        return output_dir
 
     def _load_image(self, img_path):
         multilayer_formats = ['svs', 'tiff']
@@ -171,7 +171,7 @@ class BaseTileExtractor(object):
         image_id = image_meta['image_id']
 
         if 'image_subdir' in image_meta:
-            input_image_dir = input_root_dir / image_meta['image_subdir']
+            input_image_dir = input_root_dir / str(image_meta['image_subdir'])
         else:
             input_image_dir = input_root_dir
 
@@ -192,7 +192,7 @@ class BaseTileExtractor(object):
         directory, which may contain subdirectories
         '''
         if 'image_subdir' in image_meta:
-            output_dir = output_root_dir / image_meta['image_subdir']
+            output_dir = output_root_dir / str(image_meta['image_subdir'])
             output_dir.mkdir(parents=True, exist_ok=True)
             return output_dir
         else:
@@ -212,7 +212,7 @@ class BaseTileExtractor(object):
         else:
             self.sharded = False
 
-        self._create_output_dir(output_root_dir)
+        output_root_dir = self._create_output_dir(output_root_dir)
 
         for i, row in metadata_df.iterrows():
             img_path = self._get_image_path(row, input_root_dir)
@@ -411,7 +411,8 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
 
     def _threshold_whole_image(self, img_path, scale_factor=4, fg_threshold=0.2):
 
-        img = self._read_and_pad_img(img_path)
+        img = self._load_image(img_path)
+        img = self._pad_image(img)
 
         tile_size = self.tile_info.tile_size
         h, w, c = img.shape
