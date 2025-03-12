@@ -169,10 +169,19 @@ class PandasDataset(Dataset):
     def _get_tiles_from_paths(self, paths):
         '''
         Given the list of paths (length n), return a n-length numpy array.
-        Each item in that n-length array is itself a 2-d numpy array 
-        representing a tile
+        Each item in that n-length array is itself a 3-d numpy array 
+        representing a tile.
+
+        Note that if a path does not exist, we return an all-white pixel image
         '''
-        return np.array([skimage.io.imread(p) for p in paths])
+        tile_arr = []
+        for p in paths:
+            try:
+                img = skimage.io.imread(p)
+            except FileNotFoundError:
+                img = 255*np.ones((self.tile_size, self.tile_size, 3)).astype(np.uint8)
+            tile_arr.append(img)
+        return np.array(tile_arr)
 
     def _get_input_tile_dir(self, image_id):
         '''
