@@ -175,12 +175,16 @@ class PandasDataset(Dataset):
         Note that if a path does not exist, we return an all-white pixel image
         '''
         tile_arr = []
+        missing_file_errors = 0
         for p in paths:
             try:
                 img = skimage.io.imread(p)
             except FileNotFoundError:
                 img = 255*np.ones((self.tile_size, self.tile_size, 3)).astype(np.uint8)
+                missing_file_errors += 1
             tile_arr.append(img)
+        if missing_file_errors == self.num_tiles:
+            raise Exception('Was missing all tiles for a given image. Check your tile paths.')
         return np.array(tile_arr)
 
     def _get_input_tile_dir(self, image_id):
@@ -215,7 +219,7 @@ class PandasDataset(Dataset):
         img_dir = self._get_input_tile_dir(image_id)
         if self.phase in ['fit', 'validate']:
             paths = [
-                Path(f'{img_dir}/{image_id}_{i}.png')
+                Path(f'{img_dir}/{image_id}.tile_{i}.png')
                 for i in range(self.num_tiles)
             ]
             return self._get_tiles_from_paths(paths)
