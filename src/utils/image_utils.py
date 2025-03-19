@@ -229,6 +229,13 @@ class DensityBasedTileExtractor(BaseTileExtractor):
     '''
     Returns tiles based on the 
     '''
+
+    # used to remove dark tiles with very little variance
+    # due to edges, etc. that are all black. Will also remove
+    # largely white tiles which are uninformative, although
+    # those can also be removed by sorting on pixel sums
+    VARIANCE_THREHSOLD = 30
+
     def _select_tiles(self, img_path):
         '''
         This method for tile selection involves summing the RGB
@@ -238,6 +245,15 @@ class DensityBasedTileExtractor(BaseTileExtractor):
         num_tiles = self.tile_info.n_tiles
 
         tiles = self._get_raw_tiles(img_path)
+
+
+        # get the mean pixel value for each tile. Sometimes the edges
+        # of the SVS images can be all black and we end up returning 
+        # a bunch of black tiles
+        tile_vars = tiles.var(axis=3) # (N, tile_size, tile_size)
+        tile_mean_vars = tile_vars.mean(axis=(1,2))
+        low_variance = tile_mean_vars < DensityBasedTileExtractor.VARIANCE_THREHSOLD
+        tiles = tiles[~low_variance]
 
         # if the total number of tiles in the full image was fewer than the number of requested
         # tiles, add the required number of fully white tiles
@@ -257,8 +273,7 @@ class DensityBasedTileExtractor(BaseTileExtractor):
         # Majority white tiles will have very large sums and are likely not
         # very informative.
         idxs = np.argsort(tiles.reshape(tiles.shape[0],-1).sum(-1))[:num_tiles]
-        tiles = tiles[idxs]
-        return tiles
+        return tiles[idxs]
 
 
 class NormalizingHandETileExtractor(BaseTileExtractor):
