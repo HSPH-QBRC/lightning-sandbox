@@ -5,7 +5,7 @@ from torchvision.models import efficientnet_b1
 from models.submodules import GeM, SEBlock
 
 
-class EfficientNetB1Model(nn.Module):
+class DLBCLEfficientNetB1Model(nn.Module):
     '''
     This model class extends the base EfficientNet-B1 model
     and replaces various components (e.g. avg pool - GeM)

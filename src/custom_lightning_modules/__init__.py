@@ -2,10 +2,12 @@ import sys
 
 from .basic_classifier import BasicClassifierModule
 from .pandas_challenge import PandasModule
+from .dlbcl_slides import TCIADLBCLModule
 
 PL_MODULE_LIST = [
     BasicClassifierModule,
-    PandasModule
+    PandasModule,
+    TCIADLBCLModule
 ]
 
 AVAILABLE_MODULES = {x.NAME: x for x in PL_MODULE_LIST}
