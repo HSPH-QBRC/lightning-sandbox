@@ -5,8 +5,6 @@ from sklearn.model_selection import train_test_split
 
 from data_modules.tiles import TileBasedDataset, \
     TileBasedDataModule
-from utils.image_utils import DensityBasedTileExtractor, \
-    TileInfo
 
 
 class DLBCLDataset(TileBasedDataset):
