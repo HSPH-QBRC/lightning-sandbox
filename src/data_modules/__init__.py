@@ -4,13 +4,14 @@ from .mnist import MNISTDataModule
 from .cifar10 import CIFAR10DataModule
 from .pandas_challenge import PandasDataModule
 from .wm_slides import WmSlideInferenceDataModule
-
+from .dlbcl_slides import DLBCLDataModule
 
 DATASET_LIST = [
     MNISTDataModule,
     CIFAR10DataModule,
     PandasDataModule,
-    WmSlideInferenceDataModule
+    WmSlideInferenceDataModule,
+    DLBCLDataModule
 ]
 
 AVAILABLE_DATASETS = {x.NAME: x for x in DATASET_LIST}
