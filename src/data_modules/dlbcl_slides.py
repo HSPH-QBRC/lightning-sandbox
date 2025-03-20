@@ -1,16 +1,24 @@
 from pathlib import Path
 
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 from data_modules.tiles import TileBasedDataset, \
     TileBasedDataModule
 from utils.image_utils import DensityBasedTileExtractor, \
     TileInfo
 
-class PandasDataset(TileBasedDataset):
+
+class DLBCLDataset(TileBasedDataset):
 
     def __init__(self, dataset_cfg, phase, image_meta_df, transform):
         super().__init__(dataset_cfg, phase, image_meta_df, transform)
+
+        # since the DLBCL images are especially large, we extract more tiles 
+        # than just that needed to create our composite image here. For instance,
+        # our composite image might consist of 64 tiles arranged in an (8,8) grid.
+        # However, we can certainly make more than just 64. This specifies that number
+        self.extracted_tile_count = dataset_cfg.extracted_tile_count
         self._set_tile_source_dirs()
 
     def _set_tile_source_dirs(self):
@@ -21,7 +29,7 @@ class PandasDataset(TileBasedDataset):
         # of files per directory manageable). These paths, do NOT have those-
         # they are just the 'root'
         self.train_input_tile_dirs = [
-            f'{self.base_input_tile_dir}/numtile-{self.num_tiles}-tilesize-{self.tile_size}-res-{self.img_resolution}-mode-{m}'
+            f'{self.base_input_tile_dir}/numtile-{self.extracted_tile_count}-tilesize-{self.tile_size}-res-{self.img_resolution}-mode-{m}'
             for m in [0, 2]
         ]
 
@@ -31,12 +39,11 @@ class PandasDataset(TileBasedDataset):
         row = self.image_meta_df.iloc[idx]
 
         # return the image PLUS some metadata- the model
-        # will handle how this additional metadata is encoded
-        # as the target, etc.
+        # will handle how this additional metadata is used
         return image, (
-            row['isup_grade'], 
-            row['gleason_score'], 
-            row['data_provider'], 
+            row['Stage'], 
+            row['IPI_Score'], 
+            row['IPI_Risk_Group_4_Class'], 
             row['image_id']
         )
 
@@ -71,66 +78,51 @@ class PandasDataset(TileBasedDataset):
         '''
         img_dir = self._get_input_tile_dir(image_id)
         if self.phase in ['fit', 'validate']:
+            # we have self.extracted_tile_count number of potential tiles
+            # to use when constructing the composite image. 
             paths = [
                 Path(f'{img_dir}/{image_id}.tile_{i}.png')
-                for i in range(self.num_tiles)
+                for i in np.random.choice(
+                    np.arange(self.extracted_tile_count), 
+                    self.num_tiles, 
+                    replace=False)
             ]
             return self._get_tiles_from_paths(paths)
         else: # test/predict
-            img_path = Path(f'{img_dir}/{image_id}.tiff')
-            tile_info = TileInfo(self.num_tiles, self.tile_size, self.img_resolution, 0)
-            extractor = DensityBasedTileExtractor(tile_info)
-            tiles = extractor.extract(img_path)       
-            return tiles
+            raise NotImplementedError('For test/predict, have not implemeted dataset.')
 
 
-class PandasDataModule(TileBasedDataModule):
+class DLBCLDataModule(TileBasedDataModule):
 
-    NAME = 'pandas_challenge'
+    NAME = 'tcia_dlbcl'
 
     def __init__(self, dataset_cfg):
         super().__init__(dataset_cfg)
 
     def setup(self, stage):
+
+        train_image_meta_df, test_image_meta_df = train_test_split(self.image_meta_df, 
+                                                                   test_size=self.dataset_cfg.validation_fraction,
+                                                                   stratify=self.image_meta_df['Stage'])
         
         if stage == 'fit':
 
-            # Note that based on the parameters passed into
-            # the PandasDataset constructor (via self.dataset_cfg)
-            # the train and validation parts are "pre-determined"
-            # by the info in the training metadata file. Therefore,
-            # we don't have to use `torch.utils.data.random_split`
-            # or anything similar
-
-            if self.dataset_cfg.kfold is not None:
-                holdout = self.image_meta_df.kfold == self.dataset_cfg.kfold
-                train_image_meta_df = self.image_meta_df.loc[~holdout]
-                val_image_meta_df = self.image_meta_df.loc[holdout]
-                self.train_dataset = PandasDataset(self.dataset_cfg,
-                                                   stage,
-                                                   train_image_meta_df,
-                                                   self._train_transforms)
-                self.val_dataset = PandasDataset(self.dataset_cfg,
-                                                   stage,
-                                                   val_image_meta_df,
-                                                   self._train_transforms)
-            else:
-                raise Exception('Need to specify a fold at this time.')
-
-
+            self.train_dataset = DLBCLDataset(self.dataset_cfg,
+                                                stage,
+                                                train_image_meta_df,
+                                                self._train_transforms)
+            self.val_dataset = DLBCLDataset(self.dataset_cfg,
+                                                stage,
+                                                test_image_meta_df,
+                                                self._train_transforms)
         elif stage == 'validate':
-            holdout = self.image_meta_df.kfold == self.dataset_cfg.kfold
-            val_image_meta_df = self.image_meta_df.loc[holdout]
-            self.val_dataset = PandasDataset(self.dataset_cfg,
+            self.val_dataset = DLBCLDataset(self.dataset_cfg,
                                                     stage,
-                                                    val_image_meta_df,
+                                                    test_image_meta_df,
                                                     self._validation_transforms)
 
         elif stage == 'test' or stage == 'predict':
-            self.test_dataset = PandasDataset(self.dataset_cfg,
-                                              stage,
-                                              self.image_meta_df,
-                                              self._test_transforms)
+            raise NotImplementedError('Did not implement test/predict stage')
         else:
             # stage has values of only {fit, validate, test, predict}
             # but raise an exception here just so all the conditionals
