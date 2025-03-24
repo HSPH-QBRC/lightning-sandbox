@@ -2,6 +2,7 @@ import numpy as np
 from pytorch_lightning import LightningModule
 import torch
 from torchmetrics import Accuracy
+from torch.nn.functional import one_hot
 
 from optimizers import load_optimizer_and_lr_scheduler
 from checkpoints.basic_classifier import BasicClassifierCheckpoint
@@ -86,34 +87,12 @@ class TCIADLBCLModule(LightningModule):
         '''
         Depending on the model used, we can alter how the 
         target is represented. 
-
-        In the Kaggle competition code, they used a combination 
-        of the isup_grade and gleason score to represent a target
-        vector. We could do something similar, but we can also keep
-        it simple and just encode the staging.
-
-        The argument `y` corresponds to a batch of outputs, so there are 
-        multiple elements.
         '''
-        def encode_grades(n, grades):
-            '''
-            Internal function to encode the grades in the desired
-            binary format.
-
-            In the Kaggle work, they take a grade of 3 and encode
-            as an array of the form [1,1,1,0,0] (i.e. since the 
-            grade is 3, the first 3 entries are 1's). This
-            function does that conversion using numpy broadcasting
-            '''
-            v = torch.tensor(np.arange(n)[np.newaxis, :], device=self.device)
-            grades = grades[:, np.newaxis]
-            return (v < grades).float()
-
         # each of those is some iterable with batch-size length:
         stages, ipi_scores, ipi_risk_groups, img_ids = y
 
         if self.output_channels == 4:
-            return encode_grades(4, stages)
+            return one_hot(stages.int(), 4)
         else:
             raise NotImplementedError('Labels are not available for'
                                         ' this number of output channels')
