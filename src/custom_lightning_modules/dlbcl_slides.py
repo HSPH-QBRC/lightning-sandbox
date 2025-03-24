@@ -18,7 +18,7 @@ class TCIADLBCLModule(LightningModule):
         self.config = cfg
         self.debug = self.config.debug
         self.model = model
-        self.loss_fn = torch.nn.BCEWithLogitsLoss()
+        self.loss_fn = torch.nn.CrossEntropyLoss()
         self.output_channels = self.config.model.params.output_channels
 
         self.train_acc = Accuracy(task="multiclass",
@@ -91,12 +91,7 @@ class TCIADLBCLModule(LightningModule):
         # each of those is some iterable with batch-size length:
         stages, ipi_scores, ipi_risk_groups, img_ids = y
 
-        if self.output_channels == 4:
-            # since Stage is labeled as 1,2,3,4, need to subtract 1
-            return one_hot(stages.to(dtype=torch.int64) - 1, 4).float()
-        else:
-            raise NotImplementedError('Labels are not available for'
-                                        ' this number of output channels')
+        return stages.to(dtype=torch.int64) - 1
 
     def _batchstep(self, imgs, target_meta, batch_idx):
         '''
@@ -132,23 +127,9 @@ class TCIADLBCLModule(LightningModule):
 
     def _make_prediction(self, logits):
         '''
-        Method used for making a grade prediction using the passed logits.
-
-        Note that in the model, the final layer has some specified number
-        of channels (e.g. 5 or 10). In the loss function
-        (`nn.BCEWithLogitsLoss`), it takes those logits and performs a 
-        sigmoid operation (so all entries are in the interval of [0,1]).
-        It then calculates the BCE loss compared to the targets 
-        (where we have encoded grade 3 as [1,1,1,0,0]).
-
-        Hence, to make the predictions, we have to take the logits
-        and run through a sigmoid. Then, that is summed to produce
-        some number in the range [0,5]. Those are then rounded
+        Takes the logits and makes a prediction
         '''
-        if self.output_channels == 4:
-            return logits.sigmoid().sum(axis=1).round()
-        else:
-            raise NotImplementedError('Only handles 4 channels')
+        return logits.argmax(dim=1)
 
     def _calculate_accuracy(self, logits, target_meta, metric_key, metric):
         '''
