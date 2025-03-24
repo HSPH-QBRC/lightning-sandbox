@@ -93,7 +93,7 @@ class TCIADLBCLModule(LightningModule):
 
         if self.output_channels == 4:
             # since Stage is labeled as 1,2,3,4, need to subtract 1
-            return one_hot(stages.to(dtype=torch.int64) - 1, 4)
+            return one_hot(stages.to(dtype=torch.int64) - 1, 4).float()
         else:
             raise NotImplementedError('Labels are not available for'
                                         ' this number of output channels')
