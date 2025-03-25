@@ -147,10 +147,10 @@ class TCIADLBCLModule(LightningModule):
         '''
         # We track the performance by measuring the grade
         # prediction accuracy.
-        stages, _, _, _ = target_meta
+        targets = self._create_target(target_meta)
 
         predictions = self._make_prediction(logits)
-        metric(predictions, stages)
+        metric(predictions, targets)
         self.log(metric_key, metric)
 
     def configure_callbacks(self):
