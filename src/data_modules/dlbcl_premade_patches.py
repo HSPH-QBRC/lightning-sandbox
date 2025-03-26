@@ -68,7 +68,7 @@ class PremadeDLBCLPatchesDataset(TileBasedDataset):
         img_dir = self._get_input_tile_dir(image_id)
         if self.phase in ['fit', 'validate']:
             # each subject has a variable number of patches that were created
-            all_patch_files = Path(img_dir).glob('*.png')
+            all_patch_files = list(Path(img_dir).glob('*.png'))
 
             if len(all_patch_files) < self.num_tiles:
                 tiles = self._get_tiles_from_paths(all_patch_files)
