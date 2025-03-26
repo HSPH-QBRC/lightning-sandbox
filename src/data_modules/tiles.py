@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from pytorch_lightning import LightningDataModule
 import skimage.io
+from skimage.transform import resize
 from torch.utils.data import DataLoader, \
     Dataset
 
@@ -174,6 +175,10 @@ class TileBasedDataset(Dataset):
             except FileNotFoundError:
                 img = 255*np.ones((self.tile_size, self.tile_size, 3)).astype(np.uint8)
                 missing_file_errors += 1
+
+            if img.shape[:2] != (self.tile_size, self.tile_size):
+                img = resize(img, (self.tile_size, self.tile_size))
+                
             tile_arr.append(img)
         if missing_file_errors == self.num_tiles:
             raise Exception('Was missing all tiles for a given image. Check your tile paths.')
