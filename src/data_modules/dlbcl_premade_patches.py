@@ -65,6 +65,9 @@ class PremadeDLBCLPatchesDataset(TileBasedDataset):
         Handles retrieving an array of tiles which were
         previously extracted from the original image.
         '''
+        # sometimes the numerical image_id can be cast as a float
+        # so we perform an explicit cast here:
+        image_id = str(int(image_id))
         img_dir = self._get_input_tile_dir(image_id)
         if self.phase in ['fit', 'validate']:
             # each subject has a variable number of patches that were created
