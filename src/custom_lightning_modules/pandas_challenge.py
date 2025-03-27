@@ -109,7 +109,7 @@ class PandasModule(LightningModule):
             return (v < grades).float()
 
         # each of those is some iterable with batch-size length:
-        isup_grades, gleason_scores, data_providers, imd_ids = y
+        isup_grades, gleason_scores, data_providers, img_ids = y
 
         if self.output_channels == 10:
             gleason_scores = list(map(lambda x: '0+0' if x=='negative' else x, gleason_scores))

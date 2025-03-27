@@ -2,7 +2,6 @@ import numpy as np
 from pytorch_lightning import LightningModule
 import torch
 from torchmetrics import Accuracy
-from torch.nn.functional import one_hot
 
 from optimizers import load_optimizer_and_lr_scheduler
 from checkpoints.basic_classifier import BasicClassifierCheckpoint
