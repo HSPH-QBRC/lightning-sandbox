@@ -102,6 +102,8 @@ class DLBCLDataModule(TileBasedDataModule):
         train_image_meta_df, test_image_meta_df = train_test_split(self.image_meta_df, 
                                                                    test_size=self.dataset_cfg.validation_fraction,
                                                                    stratify=self.image_meta_df['Stage'])
+        train_image_meta_df.to_csv('train_set.csv', index=False)
+        test_image_meta_df.to_csv('test_set.csv', index=False)
         
         if stage == 'fit':
 
