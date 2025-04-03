@@ -62,7 +62,10 @@ class PandasDataset(TileBasedDataset):
         elif self.phase == 'validate':
             return f'{self.train_input_tile_dirs[0]}/{subdir}'
         else: # test/predict case
-            raise NotImplementedError('!!!')
+            # note: can change for a true test case. However, we can
+            # use this to perform prediction on the hold-out set 
+            # if we are running inference instead of validation during training
+            return f'{self.train_input_tile_dirs[0]}/{subdir}'
 
     def _get_tiles(self, image_id):
         '''
@@ -70,18 +73,11 @@ class PandasDataset(TileBasedDataset):
         previously extracted from the original image.
         '''
         img_dir = self._get_input_tile_dir(image_id)
-        if self.phase in ['fit', 'validate']:
-            paths = [
-                Path(f'{img_dir}/{image_id}.tile_{i}.png')
-                for i in range(self.num_tiles)
-            ]
-            return self._get_tiles_from_paths(paths)
-        else: # test/predict
-            img_path = Path(f'{img_dir}/{image_id}.tiff')
-            tile_info = TileInfo(self.num_tiles, self.tile_size, self.img_resolution, 0)
-            extractor = DensityBasedTileExtractor(tile_info)
-            tiles = extractor.extract(img_path)       
-            return tiles
+        paths = [
+            Path(f'{img_dir}/{image_id}.tile_{i}.png')
+            for i in range(self.num_tiles)
+        ]
+        return self._get_tiles_from_paths(paths)
 
 
 class PandasDataModule(TileBasedDataModule):

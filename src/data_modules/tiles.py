@@ -181,7 +181,7 @@ class TileBasedDataset(Dataset):
                 
             tile_arr.append(img)
         if missing_file_errors == self.num_tiles:
-            raise Exception('Was missing all tiles for a given image. Check your tile paths.')
+            raise Exception(f'Was missing all tiles for a given image. Check your tile paths: {"\n".join([str(x) for x in paths])}')
         return np.array(tile_arr)
 
     def _get_tiles(self, image_id):
