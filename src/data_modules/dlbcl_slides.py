@@ -75,19 +75,15 @@ class DLBCLDataset(TileBasedDataset):
         previously extracted from the original image.
         '''
         img_dir = self._get_input_tile_dir(image_id)
-        if self.phase in ['fit', 'validate']:
-            # we have self.extracted_tile_count number of potential tiles
-            # to use when constructing the composite image. 
-            paths = [
-                Path(f'{img_dir}/{image_id}.tile_{i}.png')
-                for i in np.random.choice(
-                    np.arange(self.extracted_tile_count), 
-                    self.num_tiles, 
-                    replace=False)
-            ]
-            return self._get_tiles_from_paths(paths)
-        else: # test/predict
-            raise NotImplementedError('For test/predict, have not implemeted dataset.')
+
+        paths = [
+            Path(f'{img_dir}/{image_id}.tile_{i}.png')
+            for i in np.random.choice(
+                np.arange(self.extracted_tile_count), 
+                self.num_tiles, 
+                replace=False)
+        ]
+        return self._get_tiles_from_paths(paths)
 
 
 class DLBCLDataModule(TileBasedDataModule):
