@@ -99,12 +99,15 @@ class DLBCLDataModule(TileBasedDataModule):
 
     def setup(self, stage):
 
-        train_image_meta_df, test_image_meta_df = train_test_split(self.image_meta_df, 
-                                                                   test_size=self.dataset_cfg.validation_fraction,
-                                                                   stratify=self.image_meta_df['Stage'])
-        train_image_meta_df.to_csv('train_set.csv', index=False)
-        test_image_meta_df.to_csv('test_set.csv', index=False)
-        
+        # only do the train/val split if training or validating. If we're testing, we don't
+        # bother with a split and just use the whole `self.image_meta_df` dataframe
+        if stage in ['fit', 'validate']:
+            train_image_meta_df, test_image_meta_df = train_test_split(self.image_meta_df, 
+                                                                    test_size=self.dataset_cfg.validation_fraction,
+                                                                    stratify=self.image_meta_df['Stage'])
+            train_image_meta_df.to_csv('train_set.csv', index=False)
+            test_image_meta_df.to_csv('test_set.csv', index=False)
+            
         if stage == 'fit':
 
             self.train_dataset = DLBCLDataset(self.dataset_cfg,
@@ -122,7 +125,10 @@ class DLBCLDataModule(TileBasedDataModule):
                                                     self._validation_transforms)
 
         elif stage == 'test' or stage == 'predict':
-            raise NotImplementedError('Did not implement test/predict stage')
+            self.test_dataset = DLBCLDataset(self.dataset_cfg,
+                                        stage,
+                                        self.image_meta_df,
+                                        self._test_transforms)
         else:
             # stage has values of only {fit, validate, test, predict}
             # but raise an exception here just so all the conditionals
