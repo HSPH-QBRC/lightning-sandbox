@@ -18,6 +18,10 @@ def get_extractor_class(key):
             return DensityBasedTileExtractor
         case 1:
             return NormalizingHandETileExtractor
+        case 2:
+            return PiecewiseTileExtractor
+        case 3:
+            return DensityBasedPiecewiseTileExtractor
         case _:
             raise Exception('Did not specify an appropriate key'
                             ' for choosing the tile extractor.')
@@ -49,22 +53,34 @@ class BaseTileExtractor(object):
         output_dir.mkdir(parents=True, exist_ok=True)
         return output_dir
 
-    def _load_image(self, img_path):
+    def _check_format(self, img_path):
         multilayer_formats = ['svs', 'tiff']
-        if img_path.suffix.lower()[1:] in multilayer_formats:
-            return self._read_multilayer(img_path)
-        else:
+        if not img_path.suffix.lower()[1:] in multilayer_formats:
             raise Exception(f'Unexpected format for path: {img_path}')
+
+    def _load_image(self, img_path):
+        return self._read_multilayer(img_path)
+
+    def _open_multilayer(self, img_path):
+        self._check_format(img_path)
+        return openslide.OpenSlide(img_path)
+
+    def _read_patch(self, o, level, start_tuple, stop_tuple):
+        return np.array(o.read_region(
+            start_tuple,
+            level,
+            stop_tuple
+        ))[:,:,:3]  # in case there is an alpha channel, we take only the RGB channels      
 
     def _read_multilayer(self, img_path):
         '''
         Opens a multilayer format file (e.g. SVS, TIFF)
         and returns a numpy array of the pixels at the
-        prescribed level.
+        prescribed level. Reads entire slide
         '''
         level = self.tile_info.level
 
-        o = openslide.OpenSlide(img_path)
+        o = self._open_multilayer(img_path)
 
         # a tuple of tuples, like ((19991, 42055), (4997, 10513), (1249, 2628))
         level_dimensions = o.level_dimensions
@@ -74,55 +90,45 @@ class BaseTileExtractor(object):
                             f' exist for the image at {img_path}, which has'
                             f' {o.level_count} levels')
 
-        # in case there is an alpha channel, we take only the RGB channels:
-        return np.array(o.read_region(
-            (0,0),
-            level,
-            level_dimensions[level]
-        ))[:,:,:3]
+        return self._read_patch(o, level, (0, 0), level_dimensions[level])
+    
+    def _calculate_padding(self, w, h):
+        '''
+        Given (w,h) calculate the padding to add such that
+        the total image will permit an even number of tiles in 
+        both horizontal and vertical directions.
+        '''
+        # for brevity:
+        tile_size = self.tile_info.tile_size
+        offset_mode = self.tile_info.offset_mode
+        pad_h = (tile_size - h % tile_size) % tile_size + ((tile_size * offset_mode) // 2)
+        pad_w = (tile_size - w % tile_size) % tile_size + ((tile_size * offset_mode) // 2)
+        return pad_w, pad_h
 
+    def _apply_white_padding(self, img, pad_w, pad_h):
+        return np.pad(img,
+                [
+                    [pad_h // 2, pad_h - pad_h // 2],
+                    [pad_w // 2,pad_w - pad_w//2],
+                    [0,0]
+                ],
+                constant_values=255)
+    
     def _pad_image(self, img):
         '''
         Pad the numpy array such that the eventual
         tiling operations will create an integer number
         of tiles
         '''
-        # for brevity:
-        tile_size = self.tile_info.tile_size
-        offset_mode = self.tile_info.offset_mode
-
         h, w, c = img.shape
-
-        # Padding which will permit an integer number of (tile_size, tile_size) tiles
-        pad_h = (tile_size - h % tile_size) % tile_size + ((tile_size * offset_mode) // 2)
-        pad_w = (tile_size - w % tile_size) % tile_size + ((tile_size * offset_mode) // 2)
-
-        # pad the image with white pixels (255)
-        img = np.pad(img,
-                    [
-                        [pad_h // 2, pad_h - pad_h // 2],
-                        [pad_w // 2,pad_w - pad_w//2],
-                        [0,0]
-                    ],
-                    constant_values=255)
-        return img
+        pad_w, pad_h = self._calculate_padding(w, h)
+        return self._apply_white_padding(img, pad_w, pad_h)
     
-    def _get_raw_tiles(self, img_path, tile_index_filter=None):
+    def _get_tiles_from_array(self, img, tile_index_filter=None):
         '''
-        This returns an array of shape (N, tile_size, tile_size, 3)
-        where N is the number of tiles
-
-        If `tile_index_filter` is not None, then specific tiles are
-        selected based on their grid position. For example, if we are
-        looking to tile an image and our tile size is such that we can
-        fit (m,n) tiles in the vertical and horizontal directions, then
-        an index filter of `k` will select/keep the tile at (k//n, k%n).
-        This allows us to avoid tiling in regions of largely whitespace, etc.
+        Given an array (i.e. an image), and 
         '''
         tile_size = self.tile_info.tile_size
-
-        img = self._load_image(img_path)
-        img = self._pad_image(img)
 
         if tile_index_filter is not None:
             img_stack = []
@@ -152,13 +158,29 @@ class BaseTileExtractor(object):
             # (N, tile_size, tile_size, 3)
             # where N is the number of tiles (i.e. padded size // tile_size)
             return img.transpose(0,2,1,3,4).reshape(-1, tile_size, tile_size, 3)
+        
+    def _get_raw_tiles(self, img_path, tile_index_filter=None):
+        '''
+        This returns an array of shape (N, tile_size, tile_size, 3)
+        where N is the number of tiles
 
-    def _select_tiles(self, img_path):
+        If `tile_index_filter` is not None, then specific tiles are
+        selected based on their grid position. For example, if we are
+        looking to tile an image and our tile size is such that we can
+        fit (m,n) tiles in the vertical and horizontal directions, then
+        an index filter of `k` will select/keep the tile at (k//n, k%n).
+        This allows us to avoid tiling in regions of largely whitespace, etc.
+        '''
+        img = self._load_image(img_path)
+        img = self._pad_image(img)
+        return self._get_tiles_from_array(img, tile_index_filter=tile_index_filter)
+
+    def _select_tiles(self, img_path, img_id):
         raise NotImplementedError('Need to implement a _select_tiles method'
                                   ' specific to your application.')
     
-    def extract(self, img_path):
-        return self._select_tiles(img_path)
+    def extract(self, img_path, img_id):
+        return self._select_tiles(img_path, img_id)
 
     def _get_image_path(self, image_meta, input_root_dir):
         '''
@@ -217,7 +239,7 @@ class BaseTileExtractor(object):
         for i, row in metadata_df.iterrows():
             img_path = self._get_image_path(row, input_root_dir)
             output_dir = self._get_final_output_dir(row, output_root_dir)
-            tiles = self._select_tiles(img_path)
+            tiles = self._select_tiles(img_path, row['image_id'])
 
             for ii in range(tiles.shape[0]):
                 t = tiles[ii, :].astype(np.uint8)
@@ -225,18 +247,48 @@ class BaseTileExtractor(object):
                 skimage.io.imsave(fout, t)
 
 
-class DensityBasedTileExtractor(BaseTileExtractor):
+class DensityBasedTileMixin:
     '''
-    Returns tiles based on the 
+    Mixin class which helps with sorting and filtering tiles based on density.
+
+    Will remove tiles that are low variance which likely represent black space
+    near the edges of a slide image. Follows this by sorting tiles based on
+    pixel density (e.g. those with the darkest overall colors)
     '''
 
     # used to remove dark tiles with very little variance
     # due to edges, etc. that are all black. Will also remove
     # largely white tiles which are uninformative, although
     # those can also be removed by sorting on pixel sums
-    VARIANCE_THREHSOLD = 30
+    VARIANCE_THRESHOLD = 30
 
-    def _select_tiles(self, img_path):
+    def _post_process_tiles(self, tile_array):
+
+        tile_vars = tile_array.var(axis=3) # (N, tile_size, tile_size)
+        tile_mean_vars = tile_vars.mean(axis=(1,2))
+        low_variance = tile_mean_vars < DensityBasedTileMixin.VARIANCE_THRESHOLD
+        tile_array = tile_array[~low_variance]
+
+        # based on the sum of the pixels in each tile, we sort and take the
+        # top num_tiles. Recall that np.argsort gives ascending order. We
+        # want this since more 'informative' images will have more colored pixels
+        # which are lower pixel values.
+        # Majority white tiles will have very large sums and are likely not
+        # very informative.
+        tile_sums = tile_array.reshape(tile_array.shape[0],-1).sum(-1)
+        idxs = np.argsort(tile_sums)
+        sorted_tile_sums = tile_sums[idxs]
+        return tile_array[idxs], sorted_tile_sums
+    
+
+class DensityBasedTileExtractor(BaseTileExtractor, DensityBasedTileMixin):
+    '''
+    Returns tiles based on the pixel colors (e.g. darker is better)
+    while attempting to remove low-variance dark regions likely to be
+    slide artifacts
+    '''
+
+    def _select_tiles(self, img_path, img_id):
         '''
         This method for tile selection involves summing the RGB
         pixels for each tile and selecting those with the lowest values
@@ -246,14 +298,10 @@ class DensityBasedTileExtractor(BaseTileExtractor):
 
         tiles = self._get_raw_tiles(img_path)
 
-
-        # get the mean pixel value for each tile. Sometimes the edges
-        # of the SVS images can be all black and we end up returning 
-        # a bunch of black tiles
-        tile_vars = tiles.var(axis=3) # (N, tile_size, tile_size)
-        tile_mean_vars = tile_vars.mean(axis=(1,2))
-        low_variance = tile_mean_vars < DensityBasedTileExtractor.VARIANCE_THREHSOLD
-        tiles = tiles[~low_variance]
+        # remove low-variance tiles and sort such that
+        # the tiles with the darkest pixels are at the 
+        # top of the list:
+        tiles, tile_pixel_sums = self._post_process_tiles(tiles)
 
         # if the total number of tiles in the full image was fewer than the number of requested
         # tiles, add the required number of fully white tiles
@@ -265,15 +313,7 @@ class DensityBasedTileExtractor(BaseTileExtractor):
                             [0, 0],
                             [0, 0]
                         ], constant_values=255)
-
-        # based on the sum of the pixels in each tile, we sort and take the
-        # top num_tiles. Recall that np.argsort gives ascending order. We
-        # want this since more 'informative' images will have more colored pixels
-        # which are lower pixel values.
-        # Majority white tiles will have very large sums and are likely not
-        # very informative.
-        idxs = np.argsort(tiles.reshape(tiles.shape[0],-1).sum(-1))[:num_tiles]
-        return tiles[idxs]
+        return tiles[:num_tiles]
 
 
 class NormalizingHandETileExtractor(BaseTileExtractor):
@@ -473,7 +513,7 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
         modified_z_score = 0.6745 * diff / med_abs_deviation
         return modified_z_score > threshold
 
-    def _select_tiles(self, img_path):
+    def _select_tiles(self, img_path, img_id):
         '''
         Applies the method of Macenko (2009) to normalize 
         the image. 
@@ -555,3 +595,240 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
         normed_tiles = normed_tiles[~outliers]
         idx = np.argsort(h_vals)[:self.tile_info.n_tiles]
         return normed_tiles[idx]
+    
+
+class PiecewiseTileExtractor(BaseTileExtractor):
+    '''
+    For cases where the SVS/TIFF images are exceptionally large
+    and the resolution is very high (e.g. getting very detailed info)
+    then the loading and processing of the entire image can be prohibitive
+    and take too long.
+
+    This tile extractor effectively runs a thresholding on the entire image
+    to ignore regions (supertiles) which likely have little information. We then
+    process the supertiles.
+    '''
+
+    MAX_TILES_PER_REGION = 8000
+    THUMBNAIL_SCALE_FACTOR = 20
+    MINIMUM_FOREGROUND_FRACTION = 0.05
+
+    # a temporary directory where we store tile images.
+    # After determining the final set of tiles, we copy
+    # from there to the final output directory
+    TMP_DIR = '/scratch'
+
+    def _select_tiles(self, img_path, img_id):
+
+        # before we go any further, check that we have a 
+        # directory at TMP_DIR
+        tmp_dir = Path(PiecewiseTileExtractor.TMP_DIR)
+        if not tmp_dir.exists():
+            raise Exception('For this tile extractor, we need a temporary directory.'
+                            f' Attempted to locate one at {tmp_dir}, but it did'
+                            ' not exist.')
+
+        osi = self._open_multilayer(img_path)
+        self._calculate_supertiles(osi)
+        
+        # by using thresholding to get foreground/background,
+        # we can limit which regions of the large image we visit
+        # and extract tiles from
+        supertile_tuples = self._get_informative_supertiles(osi)
+
+        tile_stats = []
+        for i,j in supertile_tuples:
+            start_x, stop_x, start_y, stop_y = self._get_supertile_coords(osi, i, j)
+            img_patch = self._read_patch(osi, 
+                                         self.tile_info.level, 
+                                         (start_x, start_y), 
+                                         (stop_x, stop_y))
+            # now that we have a manageable patch, tile it
+            tiles_from_patch = self._get_tiles_from_array(img_patch)
+
+            # perform things like filtering low-variance, etc. - implement
+            # in a child class
+            tiles_from_patch, tile_pixel_sums = self._post_process_tiles(tiles_from_patch)
+
+            # track the tile statistics so we can then go back and find those
+            # that were 'best' over the ENTIRE image
+            tile_stats.extend(self._stash_tmp_tiles(
+                tiles_from_patch, 
+                tile_pixel_sums, 
+                tmp_dir, 
+                img_id,
+                i, j
+            ))
+
+        # now that we've completed going region by region, review 
+        # the 'best' tiles and save them to the final directory
+        tile_stats = pd.DataFrame(tile_stats).sort_values('pixel_sum', ascending=True)
+        return self._grab_final_tiles(tile_stats)
+
+    def _grab_final_tiles(self, tile_stats):
+        final_tile_array = []
+        for i in range(self.tile_info.n_tiles):
+            stats = tile_stats.iloc[i]
+            src_tile = stats.tmp_path
+            final_tile_array.append(skimage.io.imread(src_tile))
+        return np.stack(final_tile_array)
+    
+    def _stash_tmp_tiles(self, tiles, tile_pixel_sums, tmp_dir, img_id, supertile_i, supertile_j):
+        tile_stats = []
+        for ii in range(tiles.shape[0]):
+            t = tiles[ii, :].astype(np.uint8)
+            fout = tmp_dir / f'{img_id}.supertile_{supertile_i}_{supertile_j}.tile_{ii}.png'
+            s = {
+                'pixel_sum': tile_pixel_sums[ii],
+                'tmp_path': fout
+            }
+            tile_stats.append(s)
+            skimage.io.imsave(fout, t)
+        return tile_stats
+
+    def _post_process_tiles(self, tile_array):
+        return tile_array, None
+
+    def _get_informative_supertiles(self, osi):
+
+        # get a numpy array giving the reduced size image (thumbnail) 
+        # with padding applied to rougly match the fullsize image. 
+        # This has shape (h,w,3)
+        thumbnail = self._load_thumbnail(osi)
+
+        # a binary array giving 1=background, 0=foreground
+        binary_img = self._threshold_whole_image(thumbnail)
+
+        # scale the supertile sizes by the same factor
+        scaled_supertile_w = (self.supertile_w_tilecount * self.tile_info.tile_size) // PiecewiseTileExtractor.THUMBNAIL_SCALE_FACTOR
+        scaled_supertile_h = (self.supertile_h_tilecount * self.tile_info.tile_size) // PiecewiseTileExtractor.THUMBNAIL_SCALE_FACTOR
+
+        informative_supertiles = []
+        for i in range(self.num_supertile_h):
+            for j in range(self.num_supertile_w):
+                start_x = j * scaled_supertile_w
+                start_y = i * scaled_supertile_h
+                # since indexing into a np array, don't need to worry about exceeding the coordinates
+                stop_x = (j+1)*scaled_supertile_w 
+                stop_y = (i+1)*scaled_supertile_h
+
+                binary_supertile = binary_img[start_y:stop_y, start_x:stop_x]
+                # given that background=1, we subtract the background fraction from 1
+                fraction_foreground = 1 - binary_supertile.sum() / np.prod(binary_supertile.shape)
+                if fraction_foreground > PiecewiseTileExtractor.MINIMUM_FOREGROUND_FRACTION:
+                    informative_supertiles.append((i,j))
+        return informative_supertiles
+
+    def _load_thumbnail(self, osi):
+        '''
+        Returns a numpy array which is a scaled version of the entire
+        slide image. We also add scaled padding so that the image
+        and subsequent padding are similar to the padded entire slide image.
+
+        The returned array has dimension of (h,w,3) where h is the height of
+        the thumbnail and w is the width
+        '''
+        raw_w, raw_h = osi.level_dimensions[self.tile_info.level]
+        pad_w, pad_h = self._calculate_padding(raw_w, raw_h)
+
+        # given the way the `get_thumbnail` method works, we can pass
+        # the same number both times and it will appropriately scale
+        # the other dimension.
+        # Note that the `get_thumbnail` method returns a PIL.Image.Image
+        # with height H and width W. After casting to a numpy array,
+        # the np arry has shape (H,W,3)
+        scaled_w = raw_w // PiecewiseTileExtractor.THUMBNAIL_SCALE_FACTOR
+        thumbnail = osi.get_thumbnail((scaled_w, scaled_w))
+        thumbnail = np.array(thumbnail)
+
+        # add the padding (scaled) so we roughly match the full-size image
+        scaled_pad_w = pad_w // PiecewiseTileExtractor.THUMBNAIL_SCALE_FACTOR
+        scaled_pad_h = pad_h // PiecewiseTileExtractor.THUMBNAIL_SCALE_FACTOR
+
+        return self._apply_white_padding(thumbnail, scaled_pad_w, scaled_pad_h)
+
+    def _calculate_supertiles(self, osi):
+        '''
+        Helps with splitting up the large image into 'supertiles' that
+        are close to a desired size determined by MAX_TILES_PER_REGION.
+
+        In the end, this method will tell you how many supertiles there are
+        and how many tiles fit into each supertile
+        '''
+
+        # dimensions (pre-padding) of the image at the desired level
+        raw_w, raw_h = osi.level_dimensions[self.tile_info.level]
+        
+        # how many pixels to add such that we tile evenly
+        pad_w, pad_h = self._calculate_padding(raw_w, raw_h)
+        
+        padded_w = raw_w + pad_w
+        padded_h = raw_h + pad_h
+
+        aspect_ratio = padded_w / padded_h
+
+        # given the aspect ratio and `max_tiles_per_region`, we can create a supertile
+        # This gives the number of tiles in the supertile
+        supertile_h_tilecount = int(np.sqrt(PiecewiseTileExtractor.MAX_TILES_PER_REGION / aspect_ratio) )
+        supertile_w_tilecount = int(aspect_ratio * supertile_h_tilecount)
+        
+        # number of supertiles. Since we are (roughly) matching the aspect
+        # ratio of the image, the number of supertiles in both the vertical
+        # and horizontal directions will be the similar. However, we choose
+        # the maximum here. Otherwise, the supertiles could be too large
+        # and we might end up with more tiles in each supertile
+        total_tiles_h = padded_h // self.tile_info.tile_size
+        total_tiles_w = padded_w // self.tile_info.tile_size
+        num_supertile_h = 1 + total_tiles_h // supertile_h_tilecount
+        num_supertile_w = 1 + total_tiles_w // supertile_w_tilecount
+
+        self.num_supertile_w = num_supertile_w
+        self.num_supertile_h = num_supertile_h
+        self.supertile_w_tilecount = supertile_w_tilecount
+        self.supertile_h_tilecount = supertile_h_tilecount
+
+    def _get_supertile_coords(self, osi, i, j):
+        '''
+        Return the coordinates of the supertile while accounting for the padding, etc.
+        i,j gives the row,col of the supertile
+        supertile_*_tilecount gives the number of tiles in w or h directions for the supertile
+        num_supertile gives the number of supertiles needed to span the whole image. Note that
+        the final supertile may not be full-size in general.
+        '''
+        if (i >= self.num_supertile_h):
+            raise Exception('Requesting a supertile that is out of bounds in the vertical direction')
+        
+        if (j >= self.num_supertile_w):
+            raise Exception('Requesting a supertile that is out of bounds in the horizontal direction')
+        
+        # dimensions (pre-padding) of the image at the desired level
+        raw_w, raw_h = osi.level_dimensions[self.tile_info.level]
+        
+        # how many pixels to add such that we tile evenly
+        pad_w, pad_h = self._calculate_padding(raw_w, raw_h)
+
+        # how the padding is applied to the whole image
+        left_pad = pad_w // 2
+        top_pad = pad_h // 2
+
+        # dimensions of supertile in pixels
+        s_w = self.supertile_w_tilecount * self.tile_info.tile_size
+        s_h = self.supertile_h_tilecount * self.tile_info.tile_size
+        
+        # if we are on the borders, we need to account for the fact that we have padding applied
+        # to the image such that we can evenly tile. the min/max accounts for this
+        start_x = np.max([0, j*s_w - left_pad])
+        start_y = np.max([0, i*s_h - top_pad])
+        stop_x = np.min([(j+1)*s_w - left_pad, raw_w])
+        stop_y = np.min([(i+1)*s_h - top_pad, raw_h])
+
+        return start_x, stop_x, start_y, stop_y
+
+    def _threshold_whole_image(self, img):        
+        greyscale = rgb2gray(img) # otsu operates on a single-channel image
+        thresholds = threshold_multiotsu(greyscale, classes=2)
+        return np.digitize(greyscale, bins=thresholds)
+        
+
+class DensityBasedPiecewiseTileExtractor(DensityBasedTileMixin, PiecewiseTileExtractor):
+    pass
