@@ -49,6 +49,25 @@ class TestDensityBasedTileMixin(unittest.TestCase):
             ts = t.sum()
             self.assertTrue(np.allclose(ts, tile_sums[i]))
 
+    def test_post_process_removes_all(self):
+        '''
+        Tests the method which removes low-variance tiles
+        and sorts the tiles. Here, all tiles are low variance
+        and none will be returned
+        '''
+        # create 5 tiles. Each one is a (5,4) 'image'
+        # with 3 channels. Tiles with index 1,3 will have uniform 
+        # pixel values of 1,3 respectively. Those will
+        # ultimately be removed since they have no variance
+        # The even tiles will have sufficient variance
+        tiles = []
+        for i in range(5):
+            tiles.append(np.zeros((5,4,3)) + i)
+        tiles = np.stack(tiles)
+
+        extractor = DensityBasedTileMixin()
+        filtered_tiles, tile_sums = extractor._post_process_tiles(tiles)
+        self.assertTrue(len(filtered_tiles) == 0)
 
 
 class TestDensityBasedTileExtractor(unittest.TestCase):

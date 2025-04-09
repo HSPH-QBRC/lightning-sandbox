@@ -282,10 +282,13 @@ class DensityBasedTileMixin:
         # which are lower pixel values.
         # Majority white tiles will have very large sums and are likely not
         # very informative.
-        tile_sums = tile_array.reshape(tile_array.shape[0],-1).sum(-1)
-        idxs = np.argsort(tile_sums)
-        sorted_tile_sums = tile_sums[idxs]
-        return tile_array[idxs], sorted_tile_sums
+        if tile_array.shape[0] > 0:
+            tile_sums = tile_array.reshape(tile_array.shape[0],-1).sum(-1)
+            idxs = np.argsort(tile_sums)
+            sorted_tile_sums = tile_sums[idxs]
+            return tile_array[idxs], sorted_tile_sums
+        else:
+            return [], None
     
 
 class DensityBasedTileExtractor(BaseTileExtractor, DensityBasedTileMixin):
@@ -646,10 +649,12 @@ class PiecewiseTileExtractor(BaseTileExtractor):
         tile_stats = []
         for i,j in supertile_tuples:
             (start_x, stop_x, start_y, stop_y), paddings = self._get_supertile_coords(osi, i, j)
+            size_w = stop_x - start_x
+            size_h = stop_y - start_y
             img_patch = self._read_patch(osi, 
                                          self.tile_info.level, 
                                          (start_x, start_y), 
-                                         (stop_x, stop_y))
+                                         (size_w, size_h))
             
             img_patch = self._apply_pad(img_patch, *paddings)
 
@@ -662,18 +667,22 @@ class PiecewiseTileExtractor(BaseTileExtractor):
 
             # track the tile statistics so we can then go back and find those
             # that were 'best' over the ENTIRE image
-            tile_stats.extend(self._stash_tmp_tiles(
-                tiles_from_patch, 
-                tile_pixel_sums, 
-                tmp_dir, 
-                img_id,
-                i, j
-            ))
+            if len(tiles_from_patch) > 0:
+                tile_stats.extend(self._stash_tmp_tiles(
+                    tiles_from_patch, 
+                    tile_pixel_sums, 
+                    tmp_dir, 
+                    img_id,
+                    i, j
+                ))
 
         # now that we've completed going region by region, review 
         # the 'best' tiles and save them to the final directory
         tile_stats = pd.DataFrame(tile_stats).sort_values('pixel_sum', ascending=True)
-        return self._grab_final_tiles(tile_stats)
+        if tile_stats.shape[0] > 0:
+            return self._grab_final_tiles(tile_stats)
+        else:
+            return []
 
     def _grab_final_tiles(self, tile_stats):
         final_tile_array = []
@@ -843,7 +852,7 @@ class PiecewiseTileExtractor(BaseTileExtractor):
         if i == (self.num_supertile_h - 1):
             paddings[3] = pad_h - top_pad
 
-        return (start_x, stop_x, start_y, stop_y), paddings
+        return (start_x, stop_x, start_y, stop_y), paddings.astype(np.int64)
 
     def _threshold_whole_image(self, img):        
         greyscale = rgb2gray(img) # otsu operates on a single-channel image
