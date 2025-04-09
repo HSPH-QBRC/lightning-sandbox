@@ -105,14 +105,21 @@ class BaseTileExtractor(object):
         pad_w = (tile_size - w % tile_size) % tile_size + ((tile_size * offset_mode) // 2)
         return pad_w, pad_h
 
-    def _apply_white_padding(self, img, pad_w, pad_h):
+    def _apply_pad(self, img, pad_left, pad_right, pad_top, pad_bottom):
         return np.pad(img,
                 [
-                    [pad_h // 2, pad_h - pad_h // 2],
-                    [pad_w // 2,pad_w - pad_w//2],
+                    [pad_top, pad_bottom],
+                    [pad_left, pad_right],
                     [0,0]
                 ],
                 constant_values=255)
+    
+    def _apply_white_padding(self, img, pad_w, pad_h):
+        return self._apply_pad(img,
+                               pad_w // 2,
+                               pad_w - pad_w // 2,
+                               pad_h // 2,
+                               pad_h - pad_h // 2)
     
     def _pad_image(self, img):
         '''
@@ -638,11 +645,14 @@ class PiecewiseTileExtractor(BaseTileExtractor):
 
         tile_stats = []
         for i,j in supertile_tuples:
-            start_x, stop_x, start_y, stop_y = self._get_supertile_coords(osi, i, j)
+            (start_x, stop_x, start_y, stop_y), paddings = self._get_supertile_coords(osi, i, j)
             img_patch = self._read_patch(osi, 
                                          self.tile_info.level, 
                                          (start_x, start_y), 
                                          (stop_x, stop_y))
+            
+            img_patch = self._apply_pad(img_patch, *paddings)
+
             # now that we have a manageable patch, tile it
             tiles_from_patch = self._get_tiles_from_array(img_patch)
 
@@ -822,7 +832,18 @@ class PiecewiseTileExtractor(BaseTileExtractor):
         stop_x = np.min([(j+1)*s_w - left_pad, raw_w])
         stop_y = np.min([(i+1)*s_h - top_pad, raw_h])
 
-        return start_x, stop_x, start_y, stop_y
+        # paddings will be given as left, right, top, bottom
+        paddings = np.zeros(4)
+        if j == 0:
+            paddings[0] = left_pad
+        if j == (self.num_supertile_w - 1):
+            paddings[1] = pad_w - left_pad
+        if i == 0:
+            paddings[2] = top_pad
+        if i == (self.num_supertile_h - 1):
+            paddings[3] = pad_h - top_pad
+
+        return (start_x, stop_x, start_y, stop_y), paddings
 
     def _threshold_whole_image(self, img):        
         greyscale = rgb2gray(img) # otsu operates on a single-channel image

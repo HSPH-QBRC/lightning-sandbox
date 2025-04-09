@@ -390,32 +390,35 @@ class TestPiecewiseTileExtractor(unittest.TestCase):
         self.extractor.supertile_h_tilecount = supertile_h_tilecount
 
         # top left tile has to account for top+left padding
-        start_x, stop_x, start_y, stop_y = self.extractor._get_supertile_coords(mock_osi, 0, 0)
+        (start_x, stop_x, start_y, stop_y), paddings = self.extractor._get_supertile_coords(mock_osi, 0, 0)
         self.assertEqual(start_x, 0)
         self.assertEqual(start_y, 0)
         self.assertEqual(stop_x, 6512) # 6528 - 32/2 = 6512
         self.assertEqual(stop_y, 5344) # 5376 - 64/2 = 5344
+        self.assertTrue(np.allclose(paddings, [16,0,32,0]))
 
         # an internal tile still needs to account for the fact that the total
         # image was padded out
-        start_x, stop_x, start_y, stop_y = self.extractor._get_supertile_coords(mock_osi, 2, 2)
+        (start_x, stop_x, start_y, stop_y), paddings = self.extractor._get_supertile_coords(mock_osi, 2, 2)
         self.assertEqual(start_x, 13040) # 2*6528 - 32/2 = 13040
         self.assertEqual(start_y, 10720)     # 2*5376 - 64/2 = 10720
         self.assertEqual(stop_x, 13040+6528) # start_x + supertile dim w
         self.assertEqual(stop_y, 10720+5376) # start_y + supertile dim h
+        self.assertTrue(np.allclose(paddings, [0,0,0,0])) # no need to pad the internal supertile
 
-
-        start_x, stop_x, start_y, stop_y = self.extractor._get_supertile_coords(mock_osi, 2, 15)
+        (start_x, stop_x, start_y, stop_y), paddings = self.extractor._get_supertile_coords(mock_osi, 2, 15)
         self.assertEqual(start_x, 97904) # 15*6528 - 32/2 = 97904
         self.assertEqual(start_y, 10720)     # 2*5376 - 64/2 = 10720
         self.assertEqual(stop_x, 100000) # raw image has max dimension of 100,000
         self.assertEqual(stop_y, 10720+5376) # start_y + supertile dim h
+        self.assertTrue(np.allclose(paddings, [0,16,0,0]))
 
-        start_x, stop_x, start_y, stop_y = self.extractor._get_supertile_coords(mock_osi, 14, 15)
+        (start_x, stop_x, start_y, stop_y), paddings = self.extractor._get_supertile_coords(mock_osi, 14, 15)
         self.assertEqual(start_x, 97904) # 15*6528 - 32/2 = 97904
         self.assertEqual(start_y, 75232)     # 14*5376 - 64/2 = 75232
         self.assertEqual(stop_x, 100000) # raw image has max width of 100,000
         self.assertEqual(stop_y, 80000) # raw image has max height of 80,000
+        self.assertTrue(np.allclose(paddings, [0,16,0,32]))
 
         # requesting an out of bound tile in the horizontal direction
         with self.assertRaisesRegex(Exception, 'out of bounds in the horizontal'):
