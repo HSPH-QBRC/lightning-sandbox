@@ -621,7 +621,7 @@ class PiecewiseTileExtractor(BaseTileExtractor):
 
     MAX_TILES_PER_REGION = 8000
     THUMBNAIL_SCALE_FACTOR = 20
-    MINIMUM_FOREGROUND_FRACTION = 0.05
+    MINIMUM_FOREGROUND_FRACTION = 0.01
 
     # a temporary directory where we store tile images.
     # After determining the final set of tiles, we copy
