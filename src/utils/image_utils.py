@@ -686,7 +686,7 @@ class PiecewiseTileExtractor(BaseTileExtractor):
 
     def _grab_final_tiles(self, tile_stats):
         final_tile_array = []
-        for i in range(self.tile_info.n_tiles):
+        for i in range(min(self.tile_info.n_tiles, tile_stats.shape[0])):
             stats = tile_stats.iloc[i]
             src_tile = stats.tmp_path
             final_tile_array.append(skimage.io.imread(src_tile))
