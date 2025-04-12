@@ -531,7 +531,6 @@ class NormalizingHandETileExtractor(BaseTileExtractor):
         Tile selection is based on those tiles with highest H-density
         (i.e. those with the most nuclei represented)
         '''
-        print(f'Working on {img_path}')
         # by thresholding the entire image, we can focus on regions that have
         # content relative to a largely white background. We do this globally
         # instead of a tile-by-tile basis. If a region is largely white, the 
@@ -657,7 +656,6 @@ class PiecewiseTileExtractor(BaseTileExtractor):
                                          (size_w, size_h))
             
             img_patch = self._apply_pad(img_patch, *paddings)
-
             # now that we have a manageable patch, tile it
             tiles_from_patch = self._get_tiles_from_array(img_patch)
 
@@ -790,7 +788,7 @@ class PiecewiseTileExtractor(BaseTileExtractor):
         # This gives the number of tiles in the supertile
         supertile_h_tilecount = int(np.sqrt(PiecewiseTileExtractor.MAX_TILES_PER_REGION / aspect_ratio) )
         supertile_w_tilecount = int(aspect_ratio * supertile_h_tilecount)
-        
+
         # number of supertiles. Since we are (roughly) matching the aspect
         # ratio of the image, the number of supertiles in both the vertical
         # and horizontal directions will be the similar. However, we choose
@@ -798,8 +796,18 @@ class PiecewiseTileExtractor(BaseTileExtractor):
         # and we might end up with more tiles in each supertile
         total_tiles_h = padded_h // self.tile_info.tile_size
         total_tiles_w = padded_w // self.tile_info.tile_size
-        num_supertile_h = 1 + total_tiles_h // supertile_h_tilecount
-        num_supertile_w = 1 + total_tiles_w // supertile_w_tilecount
+
+        # if the supertiles perfectly divide the space. Otherwise
+        # we get an extra supertile with one dimension of zero.
+        if (total_tiles_h % supertile_h_tilecount) == 0:
+            num_supertile_h = total_tiles_h // supertile_h_tilecount
+        else:
+            num_supertile_h = 1 + total_tiles_h // supertile_h_tilecount
+
+        if (total_tiles_w % supertile_w_tilecount) == 0:
+            num_supertile_w = total_tiles_w // supertile_w_tilecount
+        else:
+            num_supertile_w = 1 + total_tiles_w // supertile_w_tilecount
 
         self.num_supertile_w = num_supertile_w
         self.num_supertile_h = num_supertile_h

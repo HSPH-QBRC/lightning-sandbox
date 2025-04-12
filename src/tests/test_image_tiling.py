@@ -345,7 +345,7 @@ class TestPiecewiseTileExtractor(unittest.TestCase):
         shutil.rmtree(self.tmp_dir)
 
     @mock.patch.object(PiecewiseTileExtractor, 'MAX_TILES_PER_REGION', new=1000)
-    def test_supertile_calculation(self):
+    def test_supertile_calculation_case1(self):
         mock_osi = mock.MagicMock()
         # given a tile size of 192 and the sizes below,
         # we can fit 520.83 and 416.67 tiles in the w,h
@@ -373,6 +373,43 @@ class TestPiecewiseTileExtractor(unittest.TestCase):
         self.assertEqual(self.extractor.num_supertile_h, 15)
         self.assertEqual(self.extractor.supertile_w_tilecount, 34)
         self.assertEqual(self.extractor.supertile_h_tilecount, 28)
+
+    @mock.patch.object(PiecewiseTileExtractor, 'MAX_TILES_PER_REGION', new=8000)
+    def test_supertile_calculation_case2(self):
+        '''
+        Handle the edge case where the image and padding are such
+        that the supertiles fit perfectly. This can cause problems
+        if not specifically addressed
+        '''
+        tile_info = TileInfo(
+            self.num_tiles,
+            192,
+            1,
+            2 # <-- mode 2 is what causes an issue
+        )
+        extractor = PiecewiseTileExtractor(tile_info)
+
+        mock_osi = mock.MagicMock()
+        # given a tile size of 192 and the sizes below,
+        # the mode=2 padded image is of size (57984, 45504).
+        # The resulting supertile calculation gives us
+        # supertiles with pixel dimension of (19200, 15168).
+        # Thus, we can PERFECTLY fit 3 supertiles in the vertical
+        # direction since 15168*3 == 45504
+        # doesn't matter that these are the same below.
+        raw_w = 57738
+        raw_h = 45138
+        mock_osi.level_dimensions = {
+            0:[raw_w, raw_h],
+            1:[raw_w, raw_h],
+            2:[raw_w, raw_h]
+        }
+
+        extractor._calculate_supertiles(mock_osi)
+        self.assertEqual(extractor.num_supertile_w, 4)
+        self.assertEqual(extractor.num_supertile_h, 3)
+        self.assertEqual(extractor.supertile_w_tilecount, 100)
+        self.assertEqual(extractor.supertile_h_tilecount, 79)
         
     def test_supertile_coords(self):
         '''
