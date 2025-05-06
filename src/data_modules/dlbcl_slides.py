@@ -67,7 +67,10 @@ class DLBCLDataset(TileBasedDataset):
         elif self.phase == 'validate':
             return f'{self.train_input_tile_dirs[0]}/{subdir}'
         else: # test/predict case
-            raise NotImplementedError('!!!')
+            # can change if proper test set is created. This just allows
+            # us to find images in the given folder- does NOT mean we are
+            # testing using the training set
+            return f'{self.train_input_tile_dirs[0]}/{subdir}'
 
     def _get_tiles(self, image_id):
         '''
