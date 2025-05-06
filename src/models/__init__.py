@@ -2,12 +2,14 @@ import sys
 
 from .basic_ann import BasicAnnModel
 from .resnet import ResnetModel
-from .pandas_effnet import EfficientNetB1Model
+from .pandas_effnet import PandasEfficientNetB1Model
+from .dlbcl_effnet import DLBCLEfficientNetB1Model
 
 MODEL_LIST = [
     BasicAnnModel,
     ResnetModel,
-    EfficientNetB1Model
+    PandasEfficientNetB1Model,
+    DLBCLEfficientNetB1Model
 ]
 
 AVAILABLE_MODELS = {x.NAME: x for x in MODEL_LIST}

@@ -1,0 +1,5 @@
+model_name: dlbcl_efficientnet_b1
+checkpoint:
+params:
+    output_channels: 4
+    dropout: 0.2

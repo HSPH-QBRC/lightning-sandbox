@@ -4,12 +4,12 @@ import torch
 from torchmetrics import Accuracy
 
 from optimizers import load_optimizer_and_lr_scheduler
-from checkpoints.pandas_challenge import PandasChallengeCheckpoint
+from checkpoints.basic_classifier import BasicClassifierCheckpoint
 
 
-class PandasModule(LightningModule):
+class TCIADLBCLModule(LightningModule):
 
-    NAME = 'pandas_challenge'
+    NAME = 'tcia_dlbcl'
 
     def __init__(self, model, cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -17,15 +17,15 @@ class PandasModule(LightningModule):
         self.config = cfg
         self.debug = self.config.debug
         self.model = model
-        self.loss_fn = torch.nn.BCEWithLogitsLoss()
+        self.loss_fn = torch.nn.CrossEntropyLoss()
         self.output_channels = self.config.model.params.output_channels
 
         self.train_acc = Accuracy(task="multiclass",
-                                  num_classes=self.config.dataset.num_grades)
+                                  num_classes=self.config.dataset.num_stages)
         self.valid_acc = Accuracy(task="multiclass",
-                                  num_classes=self.config.dataset.num_grades)
+                                  num_classes=self.config.dataset.num_stages)
         self.test_acc = Accuracy(task="multiclass",
-                                  num_classes=self.config.dataset.num_grades)
+                                  num_classes=self.config.dataset.num_stages)
         self.save_hyperparameters(ignore=['model'])
 
     def training_step(self, batch, batch_idx):
@@ -86,44 +86,11 @@ class PandasModule(LightningModule):
         '''
         Depending on the model used, we can alter how the 
         target is represented. 
-
-        In the Kaggle competition code, they used a combination 
-        of the isup_grade and gleason score to represent a target
-        vector.
-
-        The argument `y` corresponds to a batch of outputs, so there are 
-        multiple elements.
         '''
-        def encode_grades(n, grades):
-            '''
-            Internal function to encode the grades in the desired
-            binary format.
-
-            In the Kaggle work, they take a grade of 3 and encode
-            as an array of the form [1,1,1,0,0] (i.e. since the 
-            grade is 3, the first 3 entries are 1's). This
-            function does that conversion using numpy broadcasting
-            '''
-            v = torch.tensor(np.arange(n)[np.newaxis, :], device=self.device)
-            grades = grades[:, np.newaxis]
-            return (v < grades).float()
-
         # each of those is some iterable with batch-size length:
-        isup_grades, gleason_scores, data_providers, img_ids = y
+        stages, ipi_scores, ipi_risk_groups, img_ids = y
 
-        if self.output_channels == 10:
-            gleason_scores = list(map(lambda x: '0+0' if x=='negative' else x, gleason_scores))
-            gleason_first = torch.tensor(
-                np.array([int(x.split("+")[0]) for x in gleason_scores]),
-                device=self.device)
-            m1 = encode_grades(5, isup_grades)
-            m2 = encode_grades(5, gleason_first)
-            return torch.cat([m1,m2], axis=1)
-        elif self.output_channels == 5:
-            return encode_grades(5, isup_grades)
-        else:
-            raise NotImplementedError('Labels are not available for'
-                                        ' this number of output channels')
+        return stages.to(dtype=torch.int64) - 1
 
     def _batchstep(self, imgs, target_meta, batch_idx):
         '''
@@ -136,7 +103,7 @@ class PandasModule(LightningModule):
             trying to predict).
 
         Note that given the DataSet we have, `y` is a tuple of
-        (isup_grade, gleason_score, data_provider) 
+        (stages, ipi_scores, ipi_risk_groups, img_ids) 
         '''
         logits = self.model(imgs)
         targets = self._create_target(target_meta)
@@ -145,16 +112,6 @@ class PandasModule(LightningModule):
     def configure_optimizers(self):
         optimizer, lr_scheduler = load_optimizer_and_lr_scheduler(
             self.parameters(), self.config, self.trainer)
-
-        # Note that in the Kaggle impl, they used a GradualWarmupScheduler
-        # which wraps the 'default' scheduler, e.g.
-        # scheduler = GradualWarmupScheduler(
-        #         optimizer,
-        #         multiplier=10,
-        #         total_epoch=1,
-        #         after_scheduler=scheduler_default)
-        # Unless we run into problems, leave this out as it introduces
-        # a dependency from an old/unmaintained project
 
         if lr_scheduler is not None:
             additional_params = {}
@@ -169,23 +126,9 @@ class PandasModule(LightningModule):
 
     def _make_prediction(self, logits):
         '''
-        Method used for making a grade prediction using the passed logits.
-
-        Note that in the model, the final layer has some specified number
-        of channels (e.g. 5 or 10). In the loss function
-        (`nn.BCEWithLogitsLoss`), it takes those logits and performs a 
-        sigmoid operation (so all entries are in the interval of [0,1]).
-        It then calculates the BCE loss compared to the targets 
-        (where we have encoded grade 3 as [1,1,1,0,0]).
-
-        Hence, to make the predictions, we have to take the logits
-        and run through a sigmoid. Then, that is summed to produce
-        some number in the range [0,5]. Those are then rounded
+        Takes the logits and makes a prediction
         '''
-        if self.output_channels == 5:
-            return logits.sigmoid().sum(axis=1).round()
-        elif self.output_channels == 10:
-            return logits[:,:5].sigmoid().sum(axis=1).round()
+        return logits.argmax(dim=1)
 
     def _calculate_accuracy(self, logits, target_meta, metric_key, metric):
         '''
@@ -203,10 +146,10 @@ class PandasModule(LightningModule):
         '''
         # We track the performance by measuring the grade
         # prediction accuracy.
-        isup_grades, _, _, _ = target_meta
+        targets = self._create_target(target_meta)
 
         predictions = self._make_prediction(logits)
-        metric(predictions, isup_grades)
+        metric(predictions, targets)
         self.log(metric_key, metric)
 
     def configure_callbacks(self):
@@ -221,6 +164,6 @@ class PandasModule(LightningModule):
             common/lightning_module.html#configure-callbacks
         '''
         cb_list = super().configure_callbacks()
-        chkpt = PandasChallengeCheckpoint()
+        chkpt = BasicClassifierCheckpoint()
         cb_list.append(chkpt)
         return cb_list

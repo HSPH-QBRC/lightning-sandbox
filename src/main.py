@@ -20,6 +20,7 @@ def main(cfg):
     trainer = Trainer(accelerator='auto',
                       devices='auto',
                       max_epochs=cfg.trainer.max_epochs,
+                      log_every_n_steps=5,
                       accumulate_grad_batches=cfg.trainer.grad_acc,
                       callbacks=[
                           LearningRateMonitor(logging_interval="step"),
