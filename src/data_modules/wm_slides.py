@@ -266,7 +266,11 @@ class WMSlideDatasetBinaryBCL(WMSlideDataset):
 
     def __getitem__(self, idx):
 
-        image = super().__getitem__(idx)
+        # since we are calling the method in the parent to get the
+        # image itself, it ALSO returns metadata, which we don't care about
+        # Here, we will be altering the metadata returned, so we discard
+        # the metadata from the parent.
+        image, _ = super().__getitem__(idx)
         row = self.image_meta_df.iloc[idx]
 
         # return the image PLUS some metadata- the model
