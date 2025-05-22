@@ -170,6 +170,4 @@ class WMBinaryModule(BaseWMModule):
         '''
         # each of those is some iterable with batch-size length:
         subtype, image_id, binary_bcl = y
-
-        class_id = 1 if binary_bcl == 'other' else 0
-        return class_id.to(dtype=torch.int64)
+        return torch.tensor([1 if b == 'other' else 0 for b in binary_bcl], device=self.device)
