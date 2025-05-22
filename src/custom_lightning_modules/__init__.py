@@ -4,12 +4,15 @@ from .basic_classifier import BasicClassifierModule
 from .pandas_challenge import PandasModule
 from .pandas_challenge_alt import PandasAltModule
 from .dlbcl_slides import TCIADLBCLModule
+from .wm_slides import WMBinaryModule
+
 
 PL_MODULE_LIST = [
     BasicClassifierModule,
     PandasModule,
     TCIADLBCLModule,
-    PandasAltModule
+    PandasAltModule,
+    WMBinaryModule
 ]
 
 AVAILABLE_MODULES = {x.NAME: x for x in PL_MODULE_LIST}

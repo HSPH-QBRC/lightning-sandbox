@@ -1,0 +1,5 @@
+model_name: wm_binary_efficientnet_b1
+checkpoint:
+params:
+    output_channels: 2
+    dropout: 0.2
