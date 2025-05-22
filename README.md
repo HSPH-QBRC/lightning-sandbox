@@ -1,6 +1,6 @@
 # About
 
-This project is a development environment/sandbox for Pytorch Lightning.
+This project is a development environment/sandbox for a deep-learning histopathology toolbox. Projects in development include prostate cancer gleason scoring, DLBCL, and Waldenstrom's macroglobulinemia
 
 ## Configuration
 
@@ -33,7 +33,7 @@ Hydra is configured to place output files in timestamped folders in the *current
 /usr/bin/python3 src/main.py [...]
 ```
 
-For example, to run a RESNET18 model on the CIFAR10 dataset using an ADAM optimizer:
+For example, to run a RESNET18 model on the toy CIFAR10 dataset using an ADAM optimizer:
 ```
 /usr/bin/python3 src/main.py \
      +model=resnet18_cifar10 \
@@ -45,7 +45,7 @@ Each of those flags dictates the config yaml file to use. For example `+model=re
 
 **Restarting from a checkpoint**
 
-If you train for a number of epochs and would like to restart from where you left off, you can run with the same call as above, but this time append `+ckpt_path=<path to model checkpoint>` to tell the Lightning module to pick up where it left off. Note that you will most likely also have to augment the number of epochs. For instance, if you choose the `last.ckpt` (i.e. the final checkpoint file) after training for 20 epochs, yet keep your config to have `trainer.max_epochs=20`, then it will not train further. To train for an additional 10 epochs (a total of 30) you can use: 
+If you train for a number of epochs and would like to restart from where you left off, you can run with the same call as above, but this time append `+ckpt_path=<path to model checkpoint>` to tell the Lightning module to pick up where it left off. Note that you will also have to augment the number of epochs. For instance, if you choose the `last.ckpt` (i.e. the final checkpoint file) after training for 20 epochs, yet keep your config to have `trainer.max_epochs=20`, then it will not train further. To train for an additional 10 epochs (a total of 30) you can use: 
 
 ```
 /usr/bin/python3 src/main.py \
