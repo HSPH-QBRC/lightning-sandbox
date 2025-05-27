@@ -1,3 +1,4 @@
+import glob
 from pathlib import Path
 
 import albumentations as alb
@@ -263,6 +264,8 @@ class WMSlideDatasetBinaryBCL(WMSlideDataset):
 
     def __init__(self, dataset_cfg, phase, image_meta_df, transform):
         super().__init__(dataset_cfg, phase, image_meta_df, transform)
+        self.mean_pixels = np.array(dataset_cfg.mean_pixels)
+        self.std_pixels = np.array(dataset_cfg.std_pixels)
 
     def __getitem__(self, idx):
 
@@ -280,7 +283,28 @@ class WMSlideDatasetBinaryBCL(WMSlideDataset):
             row['image_id'],
             row['binary_bcl']
         )
+    
+    def _get_tiles(self, image_id):
+        '''
+        Handles retrieving an array of tiles which were
+        previously extracted from the original image.
+        '''
+        img_dir = self._get_input_tile_dir(image_id)
 
+        # due to filtering out blurry tiles, etc. we have a
+        # different number of tiles per image generally
+        all_tiles = glob.glob(f'{img_dir}/{image_id}.tile_*.png')
+        paths = np.random.choice(all_tiles, size=self.num_tiles, replace=False)
+        return self._get_tiles_from_paths(paths)
+
+    def _transform_composite(self, img):
+        '''
+        Performs z-scoring on the pixels based on means/std from the 
+        entire dataset
+        '''
+        img = img.astype(np.float32)
+        return (img - self.mean_pixels)/self.std_pixels
+    
 
 class WMDataModule(TileBasedDataModule):
 
