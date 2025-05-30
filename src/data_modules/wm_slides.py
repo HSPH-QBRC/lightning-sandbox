@@ -264,8 +264,9 @@ class WMSlideDatasetBinaryBCL(WMSlideDataset):
 
     def __init__(self, dataset_cfg, phase, image_meta_df, transform):
         super().__init__(dataset_cfg, phase, image_meta_df, transform)
-        self.mean_pixels = np.array(dataset_cfg.mean_pixels)
-        self.std_pixels = np.array(dataset_cfg.std_pixels)
+        self.mean_pixels = np.array(dataset_cfg.mean_pixels, dtype=np.float32)
+        self.std_pixels = np.array(dataset_cfg.std_pixels, dtype=np.float32)
+
 
     def __getitem__(self, idx):
 
