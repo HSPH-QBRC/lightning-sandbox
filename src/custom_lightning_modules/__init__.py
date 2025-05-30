@@ -1,7 +1,7 @@
 import sys
 
 from .basic_classifier import BasicClassifierModule
-from .pandas_challenge import PandasModule
+from .pandas_challenge import PandasModule, PandasBinaryModule
 from .pandas_challenge_alt import PandasAltModule
 from .dlbcl_slides import TCIADLBCLModule
 from .wm_slides import WMBinaryModule
@@ -10,6 +10,7 @@ from .wm_slides import WMBinaryModule
 PL_MODULE_LIST = [
     BasicClassifierModule,
     PandasModule,
+    PandasBinaryModule,
     TCIADLBCLModule,
     PandasAltModule,
     WMBinaryModule

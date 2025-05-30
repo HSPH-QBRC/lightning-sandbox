@@ -224,3 +224,48 @@ class PandasModule(LightningModule):
         chkpt = PandasChallengeCheckpoint()
         cb_list.append(chkpt)
         return cb_list
+
+
+class PandasBinaryModule(PandasModule):
+
+    NAME = 'pandas_challenge_binary'
+
+    def __init__(self, model, cfg, *args, **kwargs):
+        super().__init__(model, cfg, *args, **kwargs)
+
+    def _create_target(self, y):
+
+        # each of those is some iterable with batch-size length:
+        isup_grades, gleason_scores, data_providers, img_ids = y
+
+        # the gleason scores can be like 3+4, 4+4, etc.
+        # There are also 'negative' which get mapped to 0+0
+        # here we take 0+0 or negative to be our non-disease class
+        # and anything else to be positive disease
+        return torch.tensor([0 if b in ['0+0', 'negative'] else 1 for b in gleason_scores], device=self.device)
+
+    def _make_prediction(self, logits):
+        return logits.argmax(axis=1)
+
+    def _calculate_accuracy(self, logits, target_meta, metric_key, metric):
+        '''
+        Since the train/validation/test steps all collect
+        accuracy metrics, we create a single method to
+        handle this.
+
+        `logits` is the direct output of self.model (i.e. no sigmoid, etc.)
+        `target_meta` is the full tuple of "output metadata" from the 
+            underlying DataSet. For instance, it can contain isup_grades,
+            gleason_scores, etc. 
+        `metric_key` is the name of the metric that we are
+            collecting via LightningModule's self.log method
+        `metric` is the actual metric we are computing.
+        '''
+        # We track the performance by measuring the grade
+        # prediction accuracy.
+        isup_grades, gleason_scores, _, _ = target_meta
+        targets = self._create_target(target_meta)
+
+        predictions = self._make_prediction(logits)
+        metric(predictions, targets)
+        self.log(metric_key, metric)
